@@ -19,27 +19,31 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
     const username = args[0].trim();
     const targetServer = args[1] ? args[1].toLowerCase().trim() : 'panglejar';
 
+    // Inisialisasi variabel default login global
     let hostMikrotik = '';
     let portMikrotik = 8728; 
+    let userMikrotik = 'berry';
+    let passMikrotik = 'subang21'; // Password default untuk Panglejar, Perum, Cibarola
     let serverLabel = '';
 
-    // ROUTING MUTI-SERVER 100% VALID BERDASARKAN SCREENSHOT WINBOX
+    // ROUTING MULTI-SERVER DENGAN KREDENSIAL KHUSUS SUKAMELANG
     if (targetServer === 'perum') {
         hostMikrotik = '103.191.165.38';
         portMikrotik = 8725;
         serverLabel = 'Perum';
     } else if (targetServer === 'cibarola') {
         hostMikrotik = '103.191.165.115';
-        portMikrotik = 3155; // Valid sesuai Screenshot (654).png
+        portMikrotik = 3155; 
         serverLabel = 'Cibarola';
     } else if (targetServer === 'sukamelang') {
-        hostMikrotik = '103.191.165.126'; // IP Sukamelang baru Anda
-        portMikrotik = 8728; // Valid sesuai Screenshot (655).png
+        hostMikrotik = '103.191.165.126'; 
+        portMikrotik = 8728; 
         serverLabel = 'Sukamelang';
+        passMikrotik = 'Subang21'; // PERBAIKAN: Menggunakan 'S' kapital khusus Sukamelang
     } else {
-        // Default otomatis ke Panglejar jika hanya mengetik nama user
+        // Default otomatis ke Panglejar
         hostMikrotik = '103.191.165.115';
-        portMikrotik = 705; // Port NAT Panglejar sukses Anda
+        portMikrotik = 705; 
         serverLabel = 'Panglejar';
     }
 
@@ -47,10 +51,11 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
 
     try {
 
+        // Menggunakan variabel user & password yang dinamis sesuai server target
         api = new RouterOSClient({
             host: hostMikrotik,
-            user: 'berry',
-            password: 'subang21',
+            user: userMikrotik,
+            password: passMikrotik,
             port: portMikrotik,
             timeout: 5
         });
