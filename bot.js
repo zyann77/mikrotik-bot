@@ -13,7 +13,7 @@ const ID_TELEGRAM_SAYA = 7917320065;
 // Penyimpanan sementara sesi server teknisi
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (Fix Nama Teknisi & Username) Berhasil Berjalan...');
+console.log('Bot RnBNET (Fix Laporan Bos Berbeda) Berhasil Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -82,13 +82,13 @@ bot.on('message', async (msg) => {
         const username = text.trim();
         const targetServer = dataSesi.server;
         
-        // MENANGKAP NAMA DAN USERNAME TEKNISI DARI PESAN TELEGRAM
+        // Ambil info lengkap teknisi yang mengeksekusi
         const namaTeknisi = msg.from.first_name || 'Tanpa Nama';
         const usernameTeknisi = msg.from.username ? `@${msg.from.username}` : 'Tidak ada';
 
         delete sesiTeknisi[chatId];
 
-        // Kirim status Loading awal
+        // Kirim status Loading awal ke HP teknisi
         const infoMsg = await bot.sendMessage(chatId, `⏳ Sedang mengambil data & memproses *${username}* ke server *${targetServer.toUpperCase()}*...`, { parse_mode: 'Markdown' });
 
         let hostMikrotik = '';
@@ -133,25 +133,24 @@ bot.on('message', async (msg) => {
                 return;
             }
 
-            // EKSEKUSI ENABLE DI MIKROTIK
+            // EKSEKUSI AKTIFKAN (ENABLE) DI MIKROTIK
             await conn.menu('/ppp/secret').set({
                 id: user.id,
                 disabled: 'no'
             });
 
-            // Beri jeda 2 detik agar ONT pelanggan sempat dial-up
+            // Beri jeda 2 detik agar ONT sempat melakukan dial-up
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Cek data di menu active connection
+            // Ambil data real-time di menu Active Connections
             const activeUsers = await conn.menu('/ppp/active').get();
             const activeUser = activeUsers.find(x => x.name === username);
 
-            // Pengambilan data IP, MAC dan Paket
             let ipAddress = user.remoteAddress || user['remote-address'] || 'Dynamic / Belum Online';
             let callerId = user.callerId || user['caller-id'] || 'Any MAC / Belum Online';
             const profilePelanggan = user.profile || 'default';
             
-            // Pembacaan Last Logout
+            // Ambil Last Logout
             const lastLogoutValue = user.lastLoggedOut || user['last-logged-out'] || user.lastLinkDownTime;
             const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
                 ? 'Tidak ada riwayat / Belum pernah login' 
@@ -162,7 +161,7 @@ bot.on('message', async (msg) => {
                 callerId = activeUser.callerId || callerId;
             }
 
-            // Format Waktu Sederhana (HH:mm:ss WIB)
+            // Format Jam (HH:mm:ss WIB)
             const waktuSederhana = new Date().toLocaleTimeString('id-ID', { 
                 hour: '2-digit', 
                 minute: '2-digit', 
@@ -170,8 +169,10 @@ bot.on('message', async (msg) => {
                 timeZone: 'Asia/Jakarta' 
             }) + ' WIB';
 
-            // TEMPLATE REKAP RNB NETWORK (SUDAH KUNCI VARIABEL TEKNISI KE DALAM STRINGS)
-            const teksInformasiKomplit = 
+            // ================================================================
+            // TAMPILAN 1: UNTUK ROOM CHAT TEKNISI (BERSIH SAMA PERSIS SEPERTI DI FOTO)
+            // ================================================================
+            const teksUntukTeknisi = 
                 `✨ *RnB Network System Interface* ⚡️\n` +
                 `-----------------------------------------------\n` +
                 `📝 *Status Aktif :* SUKSES ✅\n` +
@@ -180,21 +181,38 @@ bot.on('message', async (msg) => {
                 `💻 *Server :* ${serverLabel.toUpperCase()}\n` +
                 `🌐 *IP Address :* ${ipAddress}\n` +
                 `🔒 *MAC Address :* ${callerId}\n` +
-                `👷 *Teknisi :* ${namaTeknisi} (${usernameTeknisi})\n` +
                 `⏰ *Waktu :* ${waktuSederhana}\n` +
                 `⏱️ *Last Logout :* ${lastLogout}\n` +
                 `-----------------------------------------------\n` +
                 `📌 _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT_`;
 
-            // 1. Kirim laporan ke chat teknisi yang mengaktifkan
-            bot.editMessageText(teksInformasiKomplit, {
+            // ================================================================
+            // TAMPILAN 2: KHUSUS UNTUK CHAT PRIBADI BOS (ADA INFO SIAPA YANG AKTIFIN)
+            // ================================================================
+            const teksUntukBos = 
+                `📢 *LAPORAN AKTIVASI TEKNISI*\n` +
+                `👷 *Eksekutor :* ${namaTeknisi} (${usernameTeknisi})\n` +
+                `-----------------------------------------------\n` +
+                `✨ *RnB Network System Interface* ⚡️\n` +
+                `📝 *Status :* SUKSES ✅\n` +
+                `👤 *Pelanggan :* ${username}\n` +
+                `🛜 *Paket :* ${profilePelanggan}\n` +
+                `💻 *Server :* ${serverLabel.toUpperCase()}\n` +
+                `🌐 *IP Address :* ${ipAddress}\n` +
+                `🔒 *MAC Address :* ${callerId}\n` +
+                `⏰ *Waktu :* ${waktuSederhana}\n` +
+                `⏱️ *Last Logout :* ${lastLogout}\n` +
+                `-----------------------------------------------`;
+
+            // 1. Kirim hasil tampilan bersih ke room chat teknisi
+            bot.editMessageText(teksUntukTeknisi, {
                 chat_id: chatId,
                 message_id: infoMsg.message_id,
                 parse_mode: 'Markdown'
             });
 
-            // 2. KIRIM REKAP YANG SAMA PERSIS KE CHAT PRIBADI KAMU (BOS)
-            bot.sendMessage(ID_TELEGRAM_SAYA, teksInformasiKomplit, { 
+            // 2. KIRIM SEPARATE REPORT KE CHAT PRIBADI KAMU (BOS) -> SANGAT JELAS SIAPA TEKNISINYA
+            bot.sendMessage(ID_TELEGRAM_SAYA, teksUntukBos, { 
                 parse_mode: 'Markdown' 
             });
 
