@@ -10,7 +10,8 @@ const bot = new TelegramBot(
 
 console.log('Bot Running...');
 
-bot.onText(/\/enable (.+)/, async (msg, match) => {
+// Menerima perintah /aktif [nama] [server]
+bot.onText(/\/aktif (.+)/, async (msg, match) => {
 
     const chatId = msg.chat.id;
     const inputParam = match[1].trim();
@@ -25,7 +26,7 @@ bot.onText(/\/enable (.+)/, async (msg, match) => {
     let portMikrotik = 705;
     let serverLabel = 'Panglejar';
 
-    // TUGAS: Menambahkan logika pengalihan khusus untuk server Perum
+    // Logika pengalihan khusus untuk server Perum
     if (targetServer === 'perum') {
         hostMikrotik = '103.191.165.38';
         portMikrotik = 8725;
