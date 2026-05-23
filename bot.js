@@ -15,6 +15,9 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = match[1].trim();
 
+    // Validasi pencegahan jika input kosong atau hanya spasi
+    if (!username) return;
+
     const opts = {
         reply_markup: {
             inline_keyboard: [
@@ -107,12 +110,9 @@ bot.on('callback_query', async (callbackQuery) => {
 
         await conn.menu('/ppp/secret').update({ disabled: 'no' }, id);
 
-        // --- BAGIAN EDIT TEKS BALASAN LEBIH KEREN & DILENGKAPI JAM ---
-        const sekarang = new Date();
-        const jam = String(sekarang.getHours()).padStart(2, '0');
-        const menit = String(sekarang.getMinutes()).padStart(2, '0');
-        const detik = String(sekarang.getSeconds()).padStart(2, '0');
-        const waktuOn = `${jam}:${menit}:${detik} WIB`;
+        // PERBAIKAN SISTEM JAM: Menggunakan konversi format lokal Asia/Jakarta agar anti-crash di Railway
+        const opsiWaktu = { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+        const waktuOn = new Date().toLocaleTimeString('id-ID', opsiWaktu) + ' WIB';
 
         const teksSukses = 
             `🟢 *RnBNET NETWORK SYSTEM INTERFACE*\n` +
