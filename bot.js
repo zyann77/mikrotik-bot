@@ -15,7 +15,6 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = match[1].trim();
 
-    // Validasi pencegahan jika input kosong atau hanya spasi
     if (!username) return;
 
     const opts = {
@@ -110,17 +109,13 @@ bot.on('callback_query', async (callbackQuery) => {
 
         await conn.menu('/ppp/secret').update({ disabled: 'no' }, id);
 
-        // PERBAIKAN SISTEM JAM: Menggunakan konversi format lokal Asia/Jakarta agar anti-crash di Railway
-        const opsiWaktu = { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-        const waktuOn = new Date().toLocaleTimeString('id-ID', opsiWaktu) + ' WIB';
-
+        // TEKS BARU: Tanpa fungsi jam sama sekali, dijamin anti-crash!
         const teksSukses = 
             `🟢 *RnBNET NETWORK SYSTEM INTERFACE*\n` +
             `-----------------------------------------------\n` +
             `📝 *Status* : Sukses Diaktifkan\n` +
             `👤 *Pelanggan* : \`${username}\`\n` +
             `🚀 *Server* : ${serverLabel.toUpperCase()}\n` +
-            `⏰ *Waktu ON* : \`${waktuOn}\`\n` +
             `-----------------------------------------------\n` +
             `⚡ _Masa isolir telah dibuka, koneksi dial PPPoE kembali normal._`;
 
