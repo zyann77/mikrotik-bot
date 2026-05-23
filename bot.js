@@ -13,7 +13,7 @@ const ID_TELEGRAM_SAYA = 7917320065;
 // Penyimpanan sementara sesi server teknisi
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (Fix Teknisi, IP, MAC) Berhasil Berjalan...');
+console.log('Bot RnBNET (Fix MAC Reader) Berhasil Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -82,13 +82,13 @@ bot.on('message', async (msg) => {
         const username = text.trim();
         const targetServer = dataSesi.server;
         
-        // Ambil nama dan username teknisi yang sedang mengeksekusi
+        // Ambil nama teknisi
         const namaTeknisi = msg.from.first_name || 'Tanpa Nama';
         const usernameTeknisi = msg.from.username ? `@${msg.from.username}` : 'Tidak ada';
 
         delete sesiTeknisi[chatId];
 
-        // Kirim status Loading awal ke teknisi
+        // Kirim status Loading awal
         const infoMsg = await bot.sendMessage(chatId, `⏳ Sedang mengambil data & memproses *${username}* ke server *${targetServer.toUpperCase()}*...`, { parse_mode: 'Markdown' });
 
         let hostMikrotik = '';
@@ -139,27 +139,27 @@ bot.on('message', async (msg) => {
                 disabled: 'no'
             });
 
-            // Beri jeda 1,5 detik agar ONT sempat dial-up (koneksi ulang) ke MikroTik
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            // Beri jeda 2 detik agar ONT pelanggan sempat dial-up & muncul di /ppp/active
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Cek apakah pelanggan sudah online di menu active connection
+            // Cek data di menu active connection
             const activeUsers = await conn.menu('/ppp/active').get();
             const activeUser = activeUsers.find(x => x.name === username);
 
-            // Set nilai default dari PPP Secret terlebih dahulu
-            let ipAddress = user['remote-address'] || 'Dynamic / Belum Online';
-            let callerId = user['caller-id'] || 'Any MAC / Belum Online';
-            const profilePelanggan = user['profile'] || 'default';
-            const lastLogoutValue = user['last-link-down-time'];
+            // Baca data dari PPP Secret sebagai backup awal
+            let ipAddress = user.remoteAddress || user['remote-address'] || 'Dynamic / Belum Online';
+            let callerId = user.callerId || user['caller-id'] || 'Any MAC / Belum Online';
+            const profilePelanggan = user.profile || 'default';
+            const lastLogoutValue = user.lastLinkDownTime || user['last-link-down-time'];
             
             const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
                 ? 'Tidak ada riwayat / Belum pernah login' 
                 : lastLogoutValue;
 
-            // Jika user terpantau sudah online di /ppp/active, ambil IP & MAC aslinya yang sedang jalan
+            // JIKA AKUN SUDAH DIAL-UP (ONLINE), AMBIL DATA DARI /PPP/ACTIVE (Membaca objek camelCase)
             if (activeUser) {
-                ipAddress = activeUser['address'] || ipAddress;
-                callerId = activeUser['caller-id'] || callerId;
+                ipAddress = activeUser.address || ipAddress;
+                callerId = activeUser.callerId || callerId; // Perbaikan pembacaan properti MAC
             }
 
             // Format Waktu Sederhana (HH:mm:ss WIB)
@@ -170,7 +170,7 @@ bot.on('message', async (msg) => {
                 timeZone: 'Asia/Jakarta' 
             }) + ' WIB';
 
-            // TEMPLATE REKAP BARU SESUAI FOTO KAMU (SUDAH DITAMBAHKAN TEKNISI, IP, DAN MAC)
+            // TEMPLATE REKAP RNB NETWORK
             const teksInformasiKomplit = 
                 `✨ *RnB Network System Interface* ⚡️\n` +
                 `-----------------------------------------------\n` +
@@ -186,14 +186,14 @@ bot.on('message', async (msg) => {
                 `-----------------------------------------------\n` +
                 `📌 _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT_`;
 
-            // 1. Kirim laporan ke chat teknisi yang bersangkutan
+            // 1. Kirim laporan ke chat teknisi
             bot.editMessageText(teksInformasiKomplit, {
                 chat_id: chatId,
                 message_id: infoMsg.message_id,
                 parse_mode: 'Markdown'
             });
 
-            // 2. KIRIM LAPORAN SAMA PERSIS KE CHAT PRIBADI KAMU (BOS)
+            // 2. Kirim laporan murni ke chat pribadi kamu
             bot.sendMessage(ID_TELEGRAM_SAYA, teksInformasiKomplit, { 
                 parse_mode: 'Markdown' 
             });
