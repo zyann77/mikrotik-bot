@@ -10,17 +10,17 @@ const bot = new TelegramBot(
 // ID Telegram kamu untuk memantau aktivitas teknisi
 const ID_TELEGRAM_SAYA = 7917320065; 
 
-// Penyimpanan sementara sesi server teknisi sebelum mengetik nama
+// Penyimpanan sementara sesi server teknisi
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET 4-Server (Full Code Fix) Berhasil Berjalan...');
+console.log('Bot RnBNET (Fix Teknisi, IP, MAC) Berhasil Berjalan...');
 
 // ====================================================================
-// TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER DENGAN TAMPILAN RAPI
+// TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
 // ====================================================================
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    delete sesiTeknisi[chatId]; // Bersihkan sesi lama jika ada yang menggantung
+    delete sesiTeknisi[chatId]; 
 
     const opts = {
         reply_markup: {
@@ -41,7 +41,7 @@ bot.onText(/\/start/, (msg) => {
 });
 
 // ====================================================================
-// TAHAP 2: MENANGKAP KLIK TOMBOL SERVER DARI TEKNISI
+// TAHAP 2: MENANGKAP KLIK TOMBOL SERVER
 // ====================================================================
 bot.on('callback_query', async (callbackQuery) => {
     const msg = callbackQuery.message;
@@ -51,7 +51,6 @@ bot.on('callback_query', async (callbackQuery) => {
     if (data.startsWith('srv_')) {
         const targetServer = data.replace('srv_', '');
         
-        // Simpan data server pilihan ke memori
         sesiTeknisi[chatId] = {
             server: targetServer,
             status: 'WAITING_FOR_NAME'
@@ -69,29 +68,29 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: MENANGKAP NAMA PELANGGAN & EKSEKUSI MIKROTIK (INFO SANGAT KUMPLIT)
+// TAHAP 3: MENANGKAP NAMA PELANGGAN & EKSEKUSI MIKROTIK
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    // Abaikan jika pesan kosong, atau jika user mengetik perintah /start
     if (!text || text.startsWith('/start')) return;
 
     const dataSesi = sesiTeknisi[chatId];
 
-    // Pastikan hanya memproses jika statusnya memang sedang menunggu nama pelanggan
     if (dataSesi && dataSesi.status === 'WAITING_FOR_NAME') {
         const username = text.trim();
         const targetServer = dataSesi.server;
+        
+        // Ambil nama dan username teknisi yang sedang mengeksekusi
+        const namaTeknisi = msg.from.first_name || 'Tanpa Nama';
+        const usernameTeknisi = msg.from.username ? `@${msg.from.username}` : 'Tidak ada';
 
-        // Langsung hapus sesi agar tidak terjadi bentrok double input teks
         delete sesiTeknisi[chatId];
 
-        // Kirim notifikasi awal (Loading) ke teknisi
+        // Kirim status Loading awal ke teknisi
         const infoMsg = await bot.sendMessage(chatId, `⏳ Sedang mengambil data & memproses *${username}* ke server *${targetServer.toUpperCase()}*...`, { parse_mode: 'Markdown' });
 
-        // Konfigurasi IP, Port, dan Akun MikroTik berdasarkan server tujuan
         let hostMikrotik = '';
         let portMikrotik = 8728; 
         let userMikrotik = 'berry';
@@ -121,7 +120,7 @@ bot.on('message', async (msg) => {
 
             const conn = await api.connect();
 
-            // Ambil data daftar PPP Secret
+            // Ambil data PPP Secret
             const secrets = await conn.menu('/ppp/secret').get();
             const user = secrets.find(x => x.name === username);
 
@@ -134,22 +133,36 @@ bot.on('message', async (msg) => {
                 return;
             }
 
-            // JALANKAN PERINTAH UTAMA MIKROTIK: disabled=no
+            // EKSEKUSI ENABLE DI MIKROTIK
             await conn.menu('/ppp/secret').set({
                 id: user.id,
                 disabled: 'no'
             });
 
-            // Ambil parameter data pendukung dari MikroTik
+            // Beri jeda 1,5 detik agar ONT sempat dial-up (koneksi ulang) ke MikroTik
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            // Cek apakah pelanggan sudah online di menu active connection
+            const activeUsers = await conn.menu('/ppp/active').get();
+            const activeUser = activeUsers.find(x => x.name === username);
+
+            // Set nilai default dari PPP Secret terlebih dahulu
+            let ipAddress = user['remote-address'] || 'Dynamic / Belum Online';
+            let callerId = user['caller-id'] || 'Any MAC / Belum Online';
             const profilePelanggan = user['profile'] || 'default';
             const lastLogoutValue = user['last-link-down-time'];
             
-            // Cek jika riwayat logout kosong atau bawaan pabrik (1970)
             const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
                 ? 'Tidak ada riwayat / Belum pernah login' 
                 : lastLogoutValue;
 
-            // Format jam menit detik saja (Contoh: 19:56:41 WIB)
+            // Jika user terpantau sudah online di /ppp/active, ambil IP & MAC aslinya yang sedang jalan
+            if (activeUser) {
+                ipAddress = activeUser['address'] || ipAddress;
+                callerId = activeUser['caller-id'] || callerId;
+            }
+
+            // Format Waktu Sederhana (HH:mm:ss WIB)
             const waktuSederhana = new Date().toLocaleTimeString('id-ID', { 
                 hour: '2-digit', 
                 minute: '2-digit', 
@@ -157,7 +170,7 @@ bot.on('message', async (msg) => {
                 timeZone: 'Asia/Jakarta' 
             }) + ' WIB';
 
-            // SUSUN TEMPLATE ANTARMUKA BARU SAMA PERSIS DENGAN BUKTI FOTO
+            // TEMPLATE REKAP BARU SESUAI FOTO KAMU (SUDAH DITAMBAHKAN TEKNISI, IP, DAN MAC)
             const teksInformasiKomplit = 
                 `✨ *RnB Network System Interface* ⚡️\n` +
                 `-----------------------------------------------\n` +
@@ -165,19 +178,22 @@ bot.on('message', async (msg) => {
                 `👤 *Pelanggan :* ${username}\n` +
                 `🛜 *Paket :* ${profilePelanggan}\n` +
                 `💻 *Server :* ${serverLabel.toUpperCase()}\n` +
+                `🌐 *IP Address :* ${ipAddress}\n` +
+                `🔒 *MAC Address :* ${callerId}\n` +
+                `👷 *Teknisi :* ${namaTeknisi} (${usernameTeknisi})\n` +
                 `⏰ *Waktu :* ${waktuSederhana}\n` +
                 `⏱️ *Last Logout :* ${lastLogout}\n` +
                 `-----------------------------------------------\n` +
                 `📌 _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT_`;
 
-            // 1. Edit pesan loading di chat teknisi menjadi Ringkasan Komplit Premium
+            // 1. Kirim laporan ke chat teknisi yang bersangkutan
             bot.editMessageText(teksInformasiKomplit, {
                 chat_id: chatId,
                 message_id: infoMsg.message_id,
                 parse_mode: 'Markdown'
             });
 
-            // 2. KIRIM REKAP YANG SAMA PERSIS KE CHAT PRIBADI KAMU (MURNI TANPA LOG TAMBAHAN)
+            // 2. KIRIM LAPORAN SAMA PERSIS KE CHAT PRIBADI KAMU (BOS)
             bot.sendMessage(ID_TELEGRAM_SAYA, teksInformasiKomplit, { 
                 parse_mode: 'Markdown' 
             });
