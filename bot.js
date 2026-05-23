@@ -151,21 +151,22 @@ bot.on('message', async (msg) => {
             const waktuLengkap = new Date().toLocaleString('id-ID', { ...opsiWaktu, timeZone: 'Asia/Jakarta' });
 
             const teksInformasiKomplit = 
-                `✨ *AKTIVASI USER LAYANAN RnBNET* ✨\n` +
-                `--------------------------------------------------\n` +
-                `🖥️ *Server / Wilayah :* Server ${serverLabel}\n` +
-                `👤 *Nama Pelanggan  :* \`${username}\`\n` +
-                `🌐 *IP Address (Remote):* \`${ipAddress}\`\n` +
-                `🔒 *MAC Address Lock  :* \`${callerId}\`\n` +
-                `🚀 *Profile Paket    :* \`${profilePelanggan}\`\n` +
-                `🛠️ *Service Type    :* \`${serviceType}\`\n` +
-                `📝 *Keterangan/Comment:* \`${comment}\`\n` +
-                `⏳ *Last Link Down  :* \`${lastLinkDown}\`\n` +
-                `--------------------------------------------------\n` +
-                `⚙️ *Status System    :* ✅ ENABLED (AKTIF)\n` +
-                `👷 *Teknisi Eksekutor:* ${namaTeknisi} (${usernameTeknisi})\n` +
-                `📅 *Waktu Eksekusi   :* ${waktuLengkap}\n` +
-                `--------------------------------------------------`;
+    `✨ *AKTIVASI USER LAYANAN RnBNET* ✨\n` +
+    `\`======================================\`\n` +
+    `<code>🌐 Server/Wilayah :</code> Server ${serverLabel}\n` +
+    `<code>👤 Nama Pelanggan :</code> ${username}\n` +
+    `<code>💻 IP Remote     :</code> ${ipAddress}\n` +
+    `<code>🔒 Lock MAC      :</code> ${callerId}\n` +
+    `<code>🚀 Profile Paket :</code> ${profilePelanggan}\n` +
+    `<code>🛠️ Service Type  :</code> ${serviceType}\n` +
+    `<code>📝 Keterangan    :</code> ${comment}\n` +
+    `<code>⏳ Last Link Down:</code> ${lastLinkDown}\n` +
+    `\`======================================\`\n` +
+    `⚙️ *Status System  :* ✅ *ENABLED (AKTIF)*\n` +
+    `👷 *Teknisi*        :* ${namaTeknisi} (${usernameTeknisi})\n` +
+    `📅 *Waktu*          :* ${waktuLengkap}\n` +
+    `\`======================================\``;
+
 
             // 1. Edit pesan loading di chat teknisi menjadi Ringkasan Komplit
             bot.editMessageText(teksInformasiKomplit, {
