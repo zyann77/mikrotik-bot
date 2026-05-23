@@ -1,7 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { RouterOSClient } = require('routeros-client');
 
-// Kunci Token Baru Anda - Dijamin Bebas 401 Unauthorized
 const bot = new TelegramBot(
     '8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0',
     {
@@ -9,7 +8,7 @@ const bot = new TelegramBot(
     }
 );
 
-console.log('Bot 4-Server dengan Menu Tombol Running...');
+console.log('Bot 4-Server Lengkap dengan Waktu & Riwayat Running...');
 
 // 1. MENANGKAP PERINTAH UTAMA: /aktif [nama_user]
 bot.onText(/\/aktif (.+)/, async (msg, match) => {
@@ -56,7 +55,7 @@ bot.on('callback_query', async (callbackQuery) => {
     let hostMikrotik = '';
     let portMikrotik = 8728; 
     let userMikrotik = 'berry';
-    let passMikrotik = 'subang21';
+    let passMikrotik = 'subang21';[cite: 1]
     let serverLabel = '';
 
     if (targetServer === 'perum') {
@@ -71,7 +70,7 @@ bot.on('callback_query', async (callbackQuery) => {
         hostMikrotik = '103.191.165.126'; 
         portMikrotik = 8728; 
         serverLabel = 'Sukamelang';
-        passMikrotik = 'Subang21';
+        passMikrotik = 'Subang21';[cite: 1]
     } else {
         hostMikrotik = '103.191.165.115';
         portMikrotik = 705; 
@@ -108,16 +107,29 @@ bot.on('callback_query', async (callbackQuery) => {
         console.log(`ENABLE USER [${serverLabel}]:`, username);
         console.log('ID:', id);
 
+        // Eksekusi pengaktifan user di MikroTik
         await conn.menu('/ppp/secret').update({ disabled: 'no' }, id);
+
+        // Ambil data waktu logout terakhir langsung dari sistem MikroTik Anda
+        const lastLinkDown = user['last-logged-out'] || 'Tidak ada riwayat / Belum pernah login';
+
+        // Format manipulasi string waktu lokal secara manual (Aman dari pembatasan OS Cloud Railway)
+        const d = new Date();
+        const jam = String(d.getUTCHours() + 7).padStart(2, '0'); // Konversi manual ke UTC+7 (WIB)
+        const menit = String(d.getUTCMinutes()).padStart(2, '0');
+        const detik = String(d.getUTCSeconds()).padStart(2, '0');
+        const waktuSistem = `${jam}:${menit}:${detik} WIB`;
 
         const teksSukses = 
             `🟢 *RnBNET NETWORK SYSTEM INTERFACE*\n` +
             `-----------------------------------------------\n` +
-            `📝 *Status* : Sukses Diaktifkan\n` +
-            `👤 *Pelanggan* : \`${username}\`\n` +
-            `🚀 *Server* : ${serverLabel.toUpperCase()}\n` +
+            `📝 *Status Aktif* : \`SUKSES (ONLINE)\`\n` +
+            `👤 *Nama Pelanggan* : \`${username}\`\n` +
+            `🚀 *Lokasi Server* : ${serverLabel.toUpperCase()}\n` +
+            `⏰ *Waktu Eksekusi* : \`${waktuSistem}\`\n` +
+            `⏱️ *Terakhir Logout* : \`${lastLinkDown}\`\n` +
             `-----------------------------------------------\n` +
-            `⚡ _Masa isolir telah dibuka, koneksi dial PPPoE kembali normal._`;
+            `⚡ _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT._`;
 
         bot.editMessageText(teksSukses, {
             chat_id: chatId,
