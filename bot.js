@@ -1,7 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { RouterOSClient } = require('routeros-client');
 
-// PERBAIKAN: Token dikembalikan ke yang asli & valid 100%
 const bot = new TelegramBot(
     '8588037946:AAGt0if2OS6JNJDkmi2LRMc9FYKYwLVpXdk',
     {
@@ -56,7 +55,7 @@ bot.on('callback_query', async (callbackQuery) => {
     let hostMikrotik = '';
     let portMikrotik = 8728; 
     let userMikrotik = 'berry';
-    let passMikrotik = 'subang21';[cite: 1]
+    let passMikrotik = 'subang21';
     let serverLabel = '';
 
     if (targetServer === 'perum') {
@@ -71,7 +70,7 @@ bot.on('callback_query', async (callbackQuery) => {
         hostMikrotik = '103.191.165.126'; 
         portMikrotik = 8728; 
         serverLabel = 'Sukamelang';
-        passMikrotik = 'Subang21';[cite: 1]
+        passMikrotik = 'Subang21';
     } else {
         hostMikrotik = '103.191.165.115';
         portMikrotik = 705; 
@@ -110,7 +109,6 @@ bot.on('callback_query', async (callbackQuery) => {
 
         await conn.menu('/ppp/secret').update({ disabled: 'no' }, id);
 
-        // Tampilan Keren Ringan Tanpa Jam (Anti-Crash)
         const teksSukses = 
             `🟢 *RnBNET NETWORK SYSTEM INTERFACE*\n` +
             `-----------------------------------------------\n` +
