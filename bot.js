@@ -8,25 +8,59 @@ const bot = new TelegramBot(
     }
 );
 
-console.log('Bot 4-Server Running...');
+console.log('Bot 4-Server dengan Menu Tombol Running...');
 
+// 1. MENANGKAP PERINTAH UTAMA: /aktif [nama_user]
 bot.onText(/\/aktif (.+)/, async (msg, match) => {
-
     const chatId = msg.chat.id;
-    const inputParam = match[1].trim();
-    
-    const args = inputParam.split(' ');
-    const username = args[0].trim();
-    const targetServer = args[1] ? args[1].toLowerCase().trim() : 'panglejar';
+    const username = match[1].trim();
 
-    // Inisialisasi variabel default login global
+    // Buat template pilihan tombol server dengan membawa data username
+    const opts = {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🌐 Panglejar', callback_data: `aktif_panglejar:${username}` },
+                    { text: '🏢 Perum', callback_data: `aktif_perum:${username}` }
+                ],
+                [
+                    { text: '🛰️ Cibarola', callback_data: `aktif_cibarola:${username}` },
+                    { text: '🔥 Sukamelang', callback_data: `aktif_sukamelang:${username}` }
+                ]
+            ]
+        }
+    };
+
+    bot.sendMessage(chatId, `Silakan pilih server untuk mengaktifkan user *${username}*:`, { parse_mode: 'Markdown', ...opts });
+});
+
+// 2. MENANGKAP KLIK DARI TOMBOL PILIHAN SERVER
+bot.on('callback_query', async (callbackQuery) => {
+    const msg = callbackQuery.message;
+    const chatId = msg.chat.id;
+    const data = callbackQuery.data;
+
+    // Pecah data dari tombol (Contoh: aktif_sukamelang:Rinisinta)
+    const [serverAction, username] = data.split(':');
+    const targetServer = serverAction.replace('aktif_', '');
+
+    // Beritahu Telegram kalau klik tombol sudah diterima agar loading di aplikasi hilang
+    bot.answerCallbackQuery(callbackQuery.id);
+
+    // Edit pesan lama menjadi status loading agar chat rapi
+    bot.editMessageText(`⏳ Sedang memproses *${username}* ke server *${targetServer.toUpperCase()}*...`, {
+        chat_id: chatId,
+        message_id: msg.message_id,
+        parse_mode: 'Markdown'
+    });
+
     let hostMikrotik = '';
     let portMikrotik = 8728; 
     let userMikrotik = 'berry';
-    let passMikrotik = 'subang21'; // Password default untuk Panglejar, Perum, Cibarola
+    let passMikrotik = 'subang21'; // Default password[cite: 1]
     let serverLabel = '';
 
-    // ROUTING MULTI-SERVER DENGAN KREDENSIAL KHUSUS SUKAMELANG
+    // ROUTING MULTI-SERVER TETAP MEMPERTAHANKAN SETTINGAN SUKSES ANDA[cite: 1]
     if (targetServer === 'perum') {
         hostMikrotik = '103.191.165.38';
         portMikrotik = 8725;
@@ -39,9 +73,8 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
         hostMikrotik = '103.191.165.126'; 
         portMikrotik = 8728; 
         serverLabel = 'Sukamelang';
-        passMikrotik = 'Subang21'; // PERBAIKAN: Menggunakan 'S' kapital khusus Sukamelang
+        passMikrotik = 'Subang21'; // Menggunakan huruf kapital 'S' sukses Anda[cite: 1]
     } else {
-        // Default otomatis ke Panglejar
         hostMikrotik = '103.191.165.115';
         portMikrotik = 705; 
         serverLabel = 'Panglejar';
@@ -50,8 +83,6 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
     let api;
 
     try {
-
-        // Menggunakan variabel user & password yang dinamis sesuai server target
         api = new RouterOSClient({
             host: hostMikrotik,
             user: userMikrotik,
@@ -66,59 +97,43 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
         const secrets = await conn.menu('/ppp/secret').get();
 
         // Cari EXACT username
-        const user = secrets.find(
-            x => x.name === username
-        );
+        const user = secrets.find(x => x.name === username);
 
-        // Jika tidak ditemukan
         if (!user) {
-
-            bot.sendMessage(
-                chatId,
-                `❌ User "${username}" tidak ditemukan di server ${serverLabel}`
-            );
-
+            bot.editMessageText(`❌ User "${username}" tidak ditemukan di server ${serverLabel}`, {
+                chat_id: chatId,
+                message_id: msg.message_id
+            });
             await api.close();
-
             return;
         }
 
-        // Ambil ID yang benar
         const id = user.id;
 
         console.log(`ENABLE USER [${serverLabel}]:`, username);
         console.log('ID:', id);
 
         // EKSEKUSI ENABLE
-        await conn.menu('/ppp/secret').update(
-            {
-                disabled: 'no'
-            },
-            id
-        );
+        await conn.menu('/ppp/secret').update({ disabled: 'no' }, id);
 
-        bot.sendMessage(
-            chatId,
-            `✅ PPP Secret "${username}" berhasil di-enable di server ${serverLabel}`
-        );
+        // Update pesan menjadi sukses total
+        bot.editMessageText(`✅ PPP Secret *${username}* berhasil di-enable di server *${serverLabel}*!`, {
+            chat_id: chatId,
+            message_id: msg.message_id,
+            parse_mode: 'Markdown'
+        });
 
-        // Tutup koneksi
         await api.close();
 
     } catch (err) {
-
         console.log(err);
-
-        bot.sendMessage(
-            chatId,
-            `⚠️ Error [${serverLabel}]:\n` + err.message
-        );
+        bot.editMessageText(`⚠️ Error [${serverLabel}]:\n` + err.message, {
+            chat_id: chatId,
+            message_id: msg.message_id
+        });
 
         if (api) {
-            try {
-                await api.close();
-            } catch {}
+            try { await api.close(); } catch {}
         }
     }
-
 });
