@@ -13,7 +13,7 @@ const ID_TELEGRAM_SAYA = 7917320065;
 // Penyimpanan sementara sesi server teknisi
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (Fix MAC Reader) Berhasil Berjalan...');
+console.log('Bot RnBNET (Fix Last Logout Reader) Berhasil Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -139,27 +139,28 @@ bot.on('message', async (msg) => {
                 disabled: 'no'
             });
 
-            // Beri jeda 2 detik agar ONT pelanggan sempat dial-up & muncul di /ppp/active
+            // Beri jeda 2 detik agar ONT pelanggan sempat dial-up
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Cek data di menu active connection
             const activeUsers = await conn.menu('/ppp/active').get();
             const activeUser = activeUsers.find(x => x.name === username);
 
-            // Baca data dari PPP Secret sebagai backup awal
+            // Pengambilan data IP dan MAC
             let ipAddress = user.remoteAddress || user['remote-address'] || 'Dynamic / Belum Online';
             let callerId = user.callerId || user['caller-id'] || 'Any MAC / Belum Online';
             const profilePelanggan = user.profile || 'default';
-            const lastLogoutValue = user.lastLinkDownTime || user['last-link-down-time'];
+            
+            // PERBAIKAN PEMBACAAN LAST LOGOUT (Menyesuaikan camelCase objek 'lastLoggedOut')
+            const lastLogoutValue = user.lastLoggedOut || user['last-logged-out'] || user.lastLinkDownTime;
             
             const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
                 ? 'Tidak ada riwayat / Belum pernah login' 
                 : lastLogoutValue;
 
-            // JIKA AKUN SUDAH DIAL-UP (ONLINE), AMBIL DATA DARI /PPP/ACTIVE (Membaca objek camelCase)
             if (activeUser) {
                 ipAddress = activeUser.address || ipAddress;
-                callerId = activeUser.callerId || callerId; // Perbaikan pembacaan properti MAC
+                callerId = activeUser.callerId || callerId;
             }
 
             // Format Waktu Sederhana (HH:mm:ss WIB)
@@ -170,7 +171,7 @@ bot.on('message', async (msg) => {
                 timeZone: 'Asia/Jakarta' 
             }) + ' WIB';
 
-            // TEMPLATE REKAP RNB NETWORK
+            // TEMPLATE REKAP RNB NETWORK (SUDAH FIX SEMUA DATA)
             const teksInformasiKomplit = 
                 `✨ *RnB Network System Interface* ⚡️\n` +
                 `-----------------------------------------------\n` +
