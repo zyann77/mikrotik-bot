@@ -1,8 +1,9 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { RouterOSClient } = require('routeros-client');
 
+// PERBAIKAN: Token dikembalikan ke yang asli & valid 100%
 const bot = new TelegramBot(
-    '8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0',
+    '8588037946:AAGt0if2OS6JNJDkmi2LRMc9FYKYwLVpXdk',
     {
         polling: true
     }
@@ -109,7 +110,7 @@ bot.on('callback_query', async (callbackQuery) => {
 
         await conn.menu('/ppp/secret').update({ disabled: 'no' }, id);
 
-        // TEKS BARU: Tanpa fungsi jam sama sekali, dijamin anti-crash!
+        // Tampilan Keren Ringan Tanpa Jam (Anti-Crash)
         const teksSukses = 
             `🟢 *RnBNET NETWORK SYSTEM INTERFACE*\n` +
             `-----------------------------------------------\n` +
