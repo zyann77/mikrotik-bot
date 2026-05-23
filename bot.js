@@ -55,7 +55,7 @@ bot.on('callback_query', async (callbackQuery) => {
     let hostMikrotik = '';
     let portMikrotik = 8728; 
     let userMikrotik = 'berry';
-    let passMikrotik = 'subang21';[cite: 1]
+    let passMikrotik = 'subang21';
     let serverLabel = '';
 
     if (targetServer === 'perum') {
@@ -70,7 +70,7 @@ bot.on('callback_query', async (callbackQuery) => {
         hostMikrotik = '103.191.165.126'; 
         portMikrotik = 8728; 
         serverLabel = 'Sukamelang';
-        passMikrotik = 'Subang21';[cite: 1]
+        passMikrotik = 'Subang21';
     } else {
         hostMikrotik = '103.191.165.115';
         portMikrotik = 705; 
@@ -110,18 +110,18 @@ bot.on('callback_query', async (callbackQuery) => {
         // Eksekusi pengaktifan user di MikroTik
         await conn.menu('/ppp/secret').update({ disabled: 'no' }, id);
 
-        // Ambil data waktu logout terakhir langsung dari sistem MikroTik Anda
+        // Ambil data waktu logout terakhir langsung dari properti MikroTik
         const lastLinkDown = user['last-logged-out'] || 'Tidak ada riwayat / Belum pernah login';
 
-        // Format manipulasi string waktu lokal secara manual (Aman dari pembatasan OS Cloud Railway)
+        // Format manipulasi string waktu lokal secara manual (Aman 100% dari batasan OS Cloud Railway)
         const d = new Date();
-        const jam = String(d.getUTCHours() + 7).padStart(2, '0'); // Konversi manual ke UTC+7 (WIB)
+        const jam = String(d.getUTCHours() + 7).padStart(2, '0'); // Paksa geser ke UTC+7 (WIB)
         const menit = String(d.getUTCMinutes()).padStart(2, '0');
         const detik = String(d.getUTCSeconds()).padStart(2, '0');
         const waktuSistem = `${jam}:${menit}:${detik} WIB`;
 
         const teksSukses = 
-            `🟢 *RnBNET NETWORK SYSTEM INTERFACE*\n` +
+            `🟢 *RnB Network System Interface*\n` +
             `-----------------------------------------------\n` +
             `📝 *Status Aktif* : \`SUKSES (ONLINE)\`\n` +
             `👤 *Nama Pelanggan* : \`${username}\`\n` +
