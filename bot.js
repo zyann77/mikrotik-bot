@@ -1,7 +1,7 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { RouterOSClient } = require('routeros-client');
 
-// Token Bot kamu
+// Token Bot kamu dari @BotFather
 const bot = new TelegramBot(
     '8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0',
     { polling: true }
@@ -10,17 +10,17 @@ const bot = new TelegramBot(
 // ID Telegram kamu untuk memantau aktivitas teknisi
 const ID_TELEGRAM_SAYA = 7917320065; 
 
-// Penyimpanan sementara sesi server teknisi
+// Penyimpanan sementara sesi server teknisi sebelum mengetik nama
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET 4-Server (Node.js Fix) Berhasil Berjalan...');
+console.log('Bot RnBNET 4-Server (Full Code Fix) Berhasil Berjalan...');
 
-// ==========================================
-// TAHAP 1: TEKNISI PENCET /start
-// ==========================================
+// ====================================================================
+// TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER DENGAN TAMPILAN RAPI
+// ====================================================================
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
-    delete sesiTeknisi[chatId]; 
+    delete sesiTeknisi[chatId]; // Bersihkan sesi lama jika ada yang menggantung
 
     const opts = {
         reply_markup: {
@@ -40,9 +40,9 @@ bot.onText(/\/start/, (msg) => {
     bot.sendMessage(chatId, 'Silakan pilih lokasi server untuk aktivasi pelanggan:', opts);
 });
 
-// ==========================================
-// TAHAP 2: MENANGKAP KLIK TOMBOL SERVER
-// ==========================================
+// ====================================================================
+// TAHAP 2: MENANGKAP KLIK TOMBOL SERVER DARI TEKNISI
+// ====================================================================
 bot.on('callback_query', async (callbackQuery) => {
     const msg = callbackQuery.message;
     const chatId = msg.chat.id;
@@ -51,6 +51,7 @@ bot.on('callback_query', async (callbackQuery) => {
     if (data.startsWith('srv_')) {
         const targetServer = data.replace('srv_', '');
         
+        // Simpan data server pilihan ke memori
         sesiTeknisi[chatId] = {
             server: targetServer,
             status: 'WAITING_FOR_NAME'
@@ -67,28 +68,30 @@ bot.on('callback_query', async (callbackQuery) => {
     }
 });
 
-// ==========================================
-// TAHAP 3: MENANGKAP NAMA PELANGGAN & EKSEKUSI MIKROTIK
-// ==========================================
+// ====================================================================
+// TAHAP 3: MENANGKAP NAMA PELANGGAN & EKSEKUSI MIKROTIK (INFO SANGAT KUMPLIT)
+// ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
+    // Abaikan jika pesan kosong, atau jika user mengetik perintah /start
     if (!text || text.startsWith('/start')) return;
 
     const dataSesi = sesiTeknisi[chatId];
 
+    // Pastikan hanya memproses jika statusnya memang sedang menunggu nama pelanggan
     if (dataSesi && dataSesi.status === 'WAITING_FOR_NAME') {
         const username = text.trim();
         const targetServer = dataSesi.server;
-        const namaTeknisi = msg.from.first_name;
-        const usernameTeknisi = msg.from.username ? `@${msg.from.username}` : 'Tidak ada';
 
+        // Langsung hapus sesi agar tidak terjadi bentrok double input teks
         delete sesiTeknisi[chatId];
 
-        // Kirim notifikasi awal (Loading)
+        // Kirim notifikasi awal (Loading) ke teknisi
         const infoMsg = await bot.sendMessage(chatId, `⏳ Sedang mengambil data & memproses *${username}* ke server *${targetServer.toUpperCase()}*...`, { parse_mode: 'Markdown' });
 
+        // Konfigurasi IP, Port, dan Akun MikroTik berdasarkan server tujuan
         let hostMikrotik = '';
         let portMikrotik = 8728; 
         let userMikrotik = 'berry';
@@ -118,6 +121,7 @@ bot.on('message', async (msg) => {
 
             const conn = await api.connect();
 
+            // Ambil data daftar PPP Secret
             const secrets = await conn.menu('/ppp/secret').get();
             const user = secrets.find(x => x.name === username);
 
@@ -130,27 +134,22 @@ bot.on('message', async (msg) => {
                 return;
             }
 
-            // Jalankan perintah ENABLE
+            // JALANKAN PERINTAH UTAMA MIKROTIK: disabled=no
             await conn.menu('/ppp/secret').set({
                 id: user.id,
                 disabled: 'no'
             });
 
-            // Ambil parameter komplit MikroTik
-            const ipAddress = user['remote-address'] || 'Dynamic / Belum diset';
+            // Ambil parameter data pendukung dari MikroTik
             const profilePelanggan = user['profile'] || 'default';
-            const serviceType = user['service'] || 'any';
-            const callerId = user['caller-id'] || 'Lock MAC Kosong / Any MAC';
-            const lastLinkDown = user['last-link-down-time'] || 'Tidak ada data';
-            const comment = user['comment'] || 'Tidak ada catatan';
+            const lastLogoutValue = user['last-link-down-time'];
+            
+            // Cek jika riwayat logout kosong atau bawaan pabrik (1970)
+            const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
+                ? 'Tidak ada riwayat / Belum pernah login' 
+                : lastLogoutValue;
 
-            const opsiWaktu = { 
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
-                hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
-            };
-            const waktuLengkap = new Date().toLocaleString('id-ID', { ...opsiWaktu, timeZone: 'Asia/Jakarta' });
-
-                        // Ambil format jam menit detik saja (Contoh: 19:56:41 WIB)
+            // Format jam menit detik saja (Contoh: 19:56:41 WIB)
             const waktuSederhana = new Date().toLocaleTimeString('id-ID', { 
                 hour: '2-digit', 
                 minute: '2-digit', 
@@ -158,13 +157,7 @@ bot.on('message', async (msg) => {
                 timeZone: 'Asia/Jakarta' 
             }) + ' WIB';
 
-            // Ambil data Last Logout (jika kosong atau berupa epoch lama 1970, ubah teksnya)
-            const lastLogoutValue = user['last-link-down-time'];
-            const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
-                ? 'Tidak ada riwayat / Belum pernah login' 
-                : lastLogoutValue;
-
-            // FORMAT INTERFACE BARU RNB NETWORK SESUAI FOTO
+            // SUSUN TEMPLATE ANTARMUKA BARU SAMA PERSIS DENGAN BUKTI FOTO
             const teksInformasiKomplit = 
                 `✨ *RnB Network System Interface* ⚡️\n` +
                 `-----------------------------------------------\n` +
@@ -177,20 +170,17 @@ bot.on('message', async (msg) => {
                 `-----------------------------------------------\n` +
                 `📌 _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT_`;
 
-
-
-                        // 1. Kirim tampilan baru ke HP Teknisi
+            // 1. Edit pesan loading di chat teknisi menjadi Ringkasan Komplit Premium
             bot.editMessageText(teksInformasiKomplit, {
                 chat_id: chatId,
                 message_id: infoMsg.message_id,
-                parse_mode: 'Markdown' // Tetap pakai Markdown
+                parse_mode: 'Markdown'
             });
 
-            // 2. Kirim tampilan baru yang sama persis ke chat pribadi kamu (Bos)
-            bot.sendMessage(7917320065, teksInformasiKomplit, { 
-                parse_mode: 'Markdown' // Tetap pakai Markdown
+            // 2. KIRIM REKAP YANG SAMA PERSIS KE CHAT PRIBADI KAMU (MURNI TANPA LOG TAMBAHAN)
+            bot.sendMessage(ID_TELEGRAM_SAYA, teksInformasiKomplit, { 
+                parse_mode: 'Markdown' 
             });
-
 
             await api.close();
 
