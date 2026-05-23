@@ -13,17 +13,35 @@ console.log('Bot Running...');
 bot.onText(/\/enable (.+)/, async (msg, match) => {
 
     const chatId = msg.chat.id;
-    const username = match[1].trim();
+    const inputParam = match[1].trim();
+    
+    // Memisahkan nama user dan nama server berdasarkan spasi
+    const args = inputParam.split(' ');
+    const username = args[0].trim();
+    const targetServer = args[1] ? args[1].toLowerCase().trim() : 'panglejar';
+
+    // Default setting menggunakan data Panglejar asli Anda yang sudah sukses 100%
+    let hostMikrotik = '103.191.165.115';
+    let portMikrotik = 705;
+    let serverLabel = 'Panglejar';
+
+    // TUGAS: Menambahkan logika pengalihan khusus untuk server Perum
+    if (targetServer === 'perum') {
+        hostMikrotik = '103.191.165.38';
+        portMikrotik = 8725;
+        serverLabel = 'Perum';
+    }
 
     let api;
 
     try {
 
+        // Konfigurasi RouterOSClient otomatis mengikuti server target
         api = new RouterOSClient({
-            host: '103.191.165.115',
+            host: hostMikrotik,
             user: 'berry',
             password: 'subang21',
-            port: 705,
+            port: portMikrotik,
             timeout: 5
         });
 
@@ -42,7 +60,7 @@ bot.onText(/\/enable (.+)/, async (msg, match) => {
 
             bot.sendMessage(
                 chatId,
-                `❌ User "${username}" tidak ditemukan`
+                `❌ User "${username}" tidak ditemukan di server ${serverLabel}`
             );
 
             await api.close();
@@ -53,7 +71,7 @@ bot.onText(/\/enable (.+)/, async (msg, match) => {
         // Ambil ID yang benar
         const id = user.id;
 
-        console.log('ENABLE USER:', username);
+        console.log(`ENABLE USER [${serverLabel}]:`, username);
         console.log('ID:', id);
 
         // ENABLE USER
@@ -66,7 +84,7 @@ bot.onText(/\/enable (.+)/, async (msg, match) => {
 
         bot.sendMessage(
             chatId,
-            `✅ PPP Secret "${username}" berhasil di-enable`
+            `✅ PPP Secret "${username}" berhasil di-enable di server ${serverLabel}`
         );
 
         // Tutup koneksi
@@ -78,7 +96,7 @@ bot.onText(/\/enable (.+)/, async (msg, match) => {
 
         bot.sendMessage(
             chatId,
-            '⚠️ Error:\n' + err.message
+            `⚠️ Error [${serverLabel}]:\n` + err.message
         );
 
         if (api) {
