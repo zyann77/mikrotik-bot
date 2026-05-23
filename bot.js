@@ -179,15 +179,18 @@ bot.on('message', async (msg) => {
 
 
 
-            // 1. Edit pesan loading di chat teknisi menjadi Ringkasan Komplit
+                        // 1. Kirim tampilan baru ke HP Teknisi
             bot.editMessageText(teksInformasiKomplit, {
                 chat_id: chatId,
                 message_id: infoMsg.message_id,
-                parse_mode: 'Markdown'
+                parse_mode: 'Markdown' // Tetap pakai Markdown
             });
 
-            // 2. Kirim laporan info komplit ke chat pribadi kamu (Bos)
-            bot.sendMessage(ID_TELEGRAM_SAYA, `📢 *LOG LIVE PANTUAN BOS*\n\n${teksInformasiKomplit}`, { parse_mode: 'Markdown' });
+            // 2. Kirim tampilan baru yang sama persis ke chat pribadi kamu (Bos)
+            bot.sendMessage(7917320065, teksInformasiKomplit, { 
+                parse_mode: 'Markdown' // Tetap pakai Markdown
+            });
+
 
             await api.close();
 
