@@ -13,7 +13,7 @@ const ID_TELEGRAM_SAYA = 7917320065;
 // Penyimpanan sementara sesi server teknisi
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (Fix Last Logout Reader) Berhasil Berjalan...');
+console.log('Bot RnBNET (Fix Nama Teknisi & Username) Berhasil Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -82,7 +82,7 @@ bot.on('message', async (msg) => {
         const username = text.trim();
         const targetServer = dataSesi.server;
         
-        // Ambil nama teknisi
+        // MENANGKAP NAMA DAN USERNAME TEKNISI DARI PESAN TELEGRAM
         const namaTeknisi = msg.from.first_name || 'Tanpa Nama';
         const usernameTeknisi = msg.from.username ? `@${msg.from.username}` : 'Tidak ada';
 
@@ -146,14 +146,13 @@ bot.on('message', async (msg) => {
             const activeUsers = await conn.menu('/ppp/active').get();
             const activeUser = activeUsers.find(x => x.name === username);
 
-            // Pengambilan data IP dan MAC
+            // Pengambilan data IP, MAC dan Paket
             let ipAddress = user.remoteAddress || user['remote-address'] || 'Dynamic / Belum Online';
             let callerId = user.callerId || user['caller-id'] || 'Any MAC / Belum Online';
             const profilePelanggan = user.profile || 'default';
             
-            // PERBAIKAN PEMBACAAN LAST LOGOUT (Menyesuaikan camelCase objek 'lastLoggedOut')
+            // Pembacaan Last Logout
             const lastLogoutValue = user.lastLoggedOut || user['last-logged-out'] || user.lastLinkDownTime;
-            
             const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
                 ? 'Tidak ada riwayat / Belum pernah login' 
                 : lastLogoutValue;
@@ -171,7 +170,7 @@ bot.on('message', async (msg) => {
                 timeZone: 'Asia/Jakarta' 
             }) + ' WIB';
 
-            // TEMPLATE REKAP RNB NETWORK (SUDAH FIX SEMUA DATA)
+            // TEMPLATE REKAP RNB NETWORK (SUDAH KUNCI VARIABEL TEKNISI KE DALAM STRINGS)
             const teksInformasiKomplit = 
                 `✨ *RnB Network System Interface* ⚡️\n` +
                 `-----------------------------------------------\n` +
@@ -187,14 +186,14 @@ bot.on('message', async (msg) => {
                 `-----------------------------------------------\n` +
                 `📌 _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT_`;
 
-            // 1. Kirim laporan ke chat teknisi
+            // 1. Kirim laporan ke chat teknisi yang mengaktifkan
             bot.editMessageText(teksInformasiKomplit, {
                 chat_id: chatId,
                 message_id: infoMsg.message_id,
                 parse_mode: 'Markdown'
             });
 
-            // 2. Kirim laporan murni ke chat pribadi kamu
+            // 2. KIRIM REKAP YANG SAMA PERSIS KE CHAT PRIBADI KAMU (BOS)
             bot.sendMessage(ID_TELEGRAM_SAYA, teksInformasiKomplit, { 
                 parse_mode: 'Markdown' 
             });
