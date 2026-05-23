@@ -1,103 +1,230 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { RouterOSClient } = require('routeros-client');
 
-const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { polling: true });
+// Token Bot kamu dari @BotFather
+const bot = new TelegramBot(
+    '8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0',
+    { polling: true }
+);
+
+// ID Telegram kamu untuk memantau aktivitas teknisi
 const ID_TELEGRAM_SAYA = 7917320065; 
+
+// Penyimpanan sementara sesi server teknisi
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (Fitur Isolir Enable/Disable) Aktif...');
+console.log('Bot RnBNET (Fix Laporan Bos Berbeda) Berhasil Berjalan...');
 
-// TAHAP 1: PILIH SERVER
+// ====================================================================
+// TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
+// ====================================================================
 bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    delete sesiTeknisi[chatId]; 
+
     const opts = {
         reply_markup: {
             inline_keyboard: [
-                [{ text: '🌐 Panglejar', callback_data: 'srv_panglejar' }, { text: '🏢 Perum', callback_data: 'srv_perum' }],
-                [{ text: '🛰️ Cibarola', callback_data: 'srv_cibarola' }, { text: '🔥 Sukamelang', callback_data: 'srv_sukamelang' }]
+                [
+                    { text: '🌐 Panglejar', callback_data: 'srv_panglejar' },
+                    { text: '🏢 Perum', callback_data: 'srv_perum' }
+                ],
+                [
+                    { text: '🛰️ Cibarola', callback_data: 'srv_cibarola' },
+                    { text: '🔥 Sukamelang', callback_data: 'srv_sukamelang' }
+                ]
             ]
         }
     };
-    bot.sendMessage(msg.chat.id, 'Pilih lokasi server:', opts);
+
+    bot.sendMessage(chatId, 'Silakan pilih lokasi server untuk aktivasi pelanggan:', opts);
 });
 
-// TAHAP 2: PILIH AKSI (ENABLE / DISABLE)
-bot.on('callback_query', async (query) => {
-    const chatId = query.message.chat.id;
-    const data = query.data;
+// ====================================================================
+// TAHAP 2: MENANGKAP KLIK TOMBOL SERVER
+// ====================================================================
+bot.on('callback_query', async (callbackQuery) => {
+    const msg = callbackQuery.message;
+    const chatId = msg.chat.id;
+    const data = callbackQuery.data;
 
     if (data.startsWith('srv_')) {
-        const server = data.replace('srv_', '');
-        sesiTeknisi[chatId] = { server };
+        const targetServer = data.replace('srv_', '');
         
-        const opts = {
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '✅ Hidupkan Pelanggan', callback_data: `act_enable_${server}` }],
-                    [{ text: '❌ Matikan (Isolir)', callback_data: `act_disable_${server}` }]
-                ]
-            }
+        sesiTeknisi[chatId] = {
+            server: targetServer,
+            status: 'WAITING_FOR_NAME'
         };
-        bot.editMessageText(`Server: *${server.toUpperCase()}*\nPilih Aksi:`, { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'Markdown', ...opts });
-    } 
-    
-    // TAHAP 3: EKSEKUSI
-    else if (data.startsWith('act_')) {
-        const [_, action, server] = data.split('_');
-        sesiTeknisi[chatId] = { server, action, status: 'WAITING_NAME' };
-        bot.editMessageText(`Aksi: *${action.toUpperCase()}*\nSilakan ketik *Nama Pelanggan*:`, { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'Markdown' });
+
+        bot.answerCallbackQuery(callbackQuery.id);
+        let serverLabel = targetServer.charAt(0).toUpperCase() + targetServer.slice(1);
+
+        bot.editMessageText(`✅ Terpilih: *Server ${serverLabel}*\n\nSilakan langsung ketik dan kirim *Nama Pelanggan* yang ingin diaktifkan:`, {
+            chat_id: chatId,
+            message_id: msg.message_id,
+            parse_mode: 'Markdown'
+        });
     }
 });
 
-// TAHAP 4: PROSES MIKROTIK
+// ====================================================================
+// TAHAP 3: MENANGKAP NAMA PELANGGAN & EKSEKUSI MIKROTIK
+// ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
-    if (!msg.text || msg.text.startsWith('/')) return;
-    const sesi = sesiTeknisi[chatId];
-    if (!sesi || sesi.status !== 'WAITING_NAME') return;
+    const text = msg.text;
 
-    const username = msg.text.trim();
-    const { server, action } = sesi;
-    delete sesiTeknisi[chatId];
+    if (!text || text.startsWith('/start')) return;
 
-    const infoMsg = await bot.sendMessage(chatId, `⏳ Memproses *${action}* untuk *${username}*...`, { parse_mode: 'Markdown' });
+    const dataSesi = sesiTeknisi[chatId];
 
-    // Koneksi MikroTik
-    let host = '103.191.165.115', port = 705, user = 'berry', pass = 'subang21';
-    if(server === 'perum') { host = '103.191.165.38'; port = 8725; }
-    else if(server === 'cibarola') { host = '103.191.165.115'; port = 3155; }
-    else if(server === 'sukamelang') { host = '103.191.165.126'; port = 8728; pass = 'Subang21'; }
-
-    try {
-        const api = new RouterOSClient({ host, user, password: pass, port, timeout: 5 });
-        const conn = await api.connect();
-
-        const secrets = await conn.menu('/ppp/secret').get();
-        const userFound = secrets.find(x => x.name === username);
-
-        if (!userFound) {
-            bot.editMessageText(`❌ User *${username}* tidak ditemukan!`, { chat_id: chatId, message_id: infoMsg.message_id, parse_mode: 'Markdown' });
-            return await api.close();
-        }
-
-        // EKSEKUSI
-        await conn.menu('/ppp/secret').set({ id: userFound.id, disabled: action === 'enable' ? 'no' : 'yes' });
-
-        // JIKA DISABLE, KICK DARI ACTIVE CONNECTION
-        if (action === 'disable') {
-            const active = await conn.menu('/ppp/active').get();
-            const activeUser = active.find(x => x.name === username);
-            if (activeUser) {
-                await conn.menu('/ppp/active').remove({ id: activeUser.id });
-            }
-        }
-
-        bot.editMessageText(`✅ Berhasil *${action}* user *${username}* di server *${server.toUpperCase()}*`, { chat_id: chatId, message_id: infoMsg.message_id, parse_mode: 'Markdown' });
+    if (dataSesi && dataSesi.status === 'WAITING_FOR_NAME') {
+        const username = text.trim();
+        const targetServer = dataSesi.server;
         
-        // Notif ke Bos
-        bot.sendMessage(ID_TELEGRAM_SAYA, `📢 *LAPORAN ISOLIR/AKTIVASI*\n👤 Teknisi: ${msg.from.first_name}\n💻 Aksi: ${action.toUpperCase()}\n👤 Pelanggan: ${username}\n🖥️ Server: ${server.toUpperCase()}`, { parse_mode: 'Markdown' });
+        // Ambil info lengkap teknisi yang mengeksekusi
+        const namaTeknisi = msg.from.first_name || 'Tanpa Nama';
+        const usernameTeknisi = msg.from.username ? `@${msg.from.username}` : 'Tidak ada';
 
-        await api.close();
-    } catch (err) {
-        bot.sendMessage(chatId, `❌ Error: ${err.message}`);
+        delete sesiTeknisi[chatId];
+
+        // Kirim status Loading awal ke HP teknisi
+        const infoMsg = await bot.sendMessage(chatId, `⏳ Sedang mengambil data & memproses *${username}* ke server *${targetServer.toUpperCase()}*...`, { parse_mode: 'Markdown' });
+
+        let hostMikrotik = '';
+        let portMikrotik = 8728; 
+        let userMikrotik = 'berry';
+        let passMikrotik = 'subang21';
+        let serverLabel = '';
+
+        if (targetServer === 'perum') {
+            hostMikrotik = '103.191.165.38'; portMikrotik = 8725; serverLabel = 'Perum';
+        } else if (targetServer === 'cibarola') {
+            hostMikrotik = '103.191.165.115'; portMikrotik = 3155; serverLabel = 'Cibarola';
+        } else if (targetServer === 'sukamelang') {
+            hostMikrotik = '103.191.165.126'; portMikrotik = 8728; serverLabel = 'Sukamelang'; passMikrotik = 'Subang21';
+        } else {
+            hostMikrotik = '103.191.165.115'; portMikrotik = 705; serverLabel = 'Panglejar';
+        }
+
+        let api;
+
+        try {
+            api = new RouterOSClient({
+                host: hostMikrotik,
+                user: userMikrotik,
+                password: passMikrotik,
+                port: portMikrotik,
+                timeout: 5
+            });
+
+            const conn = await api.connect();
+
+            // Ambil data PPP Secret
+            const secrets = await conn.menu('/ppp/secret').get();
+            const user = secrets.find(x => x.name === username);
+
+            if (!user) {
+                bot.editMessageText(`❌ User "${username}" tidak ditemukan di server ${serverLabel}`, {
+                    chat_id: chatId,
+                    message_id: infoMsg.message_id
+                });
+                await api.close();
+                return;
+            }
+
+            // EKSEKUSI AKTIFKAN (ENABLE) DI MIKROTIK
+            await conn.menu('/ppp/secret').set({
+                id: user.id,
+                disabled: 'no'
+            });
+
+            // Beri jeda 2 detik agar ONT sempat melakukan dial-up
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Ambil data real-time di menu Active Connections
+            const activeUsers = await conn.menu('/ppp/active').get();
+            const activeUser = activeUsers.find(x => x.name === username);
+
+            let ipAddress = user.remoteAddress || user['remote-address'] || 'Dynamic / Belum Online';
+            let callerId = user.callerId || user['caller-id'] || 'Any MAC / Belum Online';
+            const profilePelanggan = user.profile || 'default';
+            
+            // Ambil Last Logout
+            const lastLogoutValue = user.lastLoggedOut || user['last-logged-out'] || user.lastLinkDownTime;
+            const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
+                ? 'Tidak ada riwayat / Belum pernah login' 
+                : lastLogoutValue;
+
+            if (activeUser) {
+                ipAddress = activeUser.address || ipAddress;
+                callerId = activeUser.callerId || callerId;
+            }
+
+            // Format Jam (HH:mm:ss WIB)
+            const waktuSederhana = new Date().toLocaleTimeString('id-ID', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                timeZone: 'Asia/Jakarta' 
+            }) + ' WIB';
+
+            // ================================================================
+            // TAMPILAN 1: UNTUK ROOM CHAT TEKNISI (BERSIH SAMA PERSIS SEPERTI DI FOTO)
+            // ================================================================
+            const teksUntukTeknisi = 
+                `✨ *RnB Network System Interface* ⚡️\n` +
+                `-----------------------------------------------\n` +
+                `📝 *Status Aktif :* SUKSES ✅\n` +
+                `👤 *Pelanggan :* ${username}\n` +
+                `🛜 *Paket :* ${profilePelanggan}\n` +
+                `💻 *Server :* ${serverLabel.toUpperCase()}\n` +
+                `🌐 *IP Address :* ${ipAddress}\n` +
+                `🔒 *MAC Address :* ${callerId}\n` +
+                `⏰ *Waktu :* ${waktuSederhana}\n` +
+                `⏱️ *Last Logout :* ${lastLogout}\n` +
+                `-----------------------------------------------\n` +
+                `📌 _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT_`;
+
+            // ================================================================
+            // TAMPILAN 2: KHUSUS UNTUK CHAT PRIBADI BOS (ADA INFO SIAPA YANG AKTIFIN)
+            // ================================================================
+            const teksUntukBos = 
+                `📢 *LAPORAN AKTIVASI TEKNISI*\n` +
+                `👷 *Eksekutor :* ${namaTeknisi} (${usernameTeknisi})\n` +
+                `-----------------------------------------------\n` +
+                `✨ *RnB Network System Interface* ⚡️\n` +
+                `📝 *Status :* SUKSES ✅\n` +
+                `👤 *Pelanggan :* ${username}\n` +
+                `🛜 *Paket :* ${profilePelanggan}\n` +
+                `💻 *Server :* ${serverLabel.toUpperCase()}\n` +
+                `🌐 *IP Address :* ${ipAddress}\n` +
+                `🔒 *MAC Address :* ${callerId}\n` +
+                `⏰ *Waktu :* ${waktuSederhana}\n` +
+                `⏱️ *Last Logout :* ${lastLogout}\n` +
+                `-----------------------------------------------`;
+
+            // 1. Kirim hasil tampilan bersih ke room chat teknisi
+            bot.editMessageText(teksUntukTeknisi, {
+                chat_id: chatId,
+                message_id: infoMsg.message_id,
+                parse_mode: 'Markdown'
+            });
+
+            // 2. KIRIM SEPARATE REPORT KE CHAT PRIBADI KAMU (BOS) -> SANGAT JELAS SIAPA TEKNISINYA
+            bot.sendMessage(ID_TELEGRAM_SAYA, teksUntukBos, { 
+                parse_mode: 'Markdown' 
+            });
+
+            await api.close();
+
+        } catch (error) {
+            console.error('Error MikroTik:', error);
+            bot.editMessageText(`❌ Terjadi error saat mengeksekusi perintah di server ${serverLabel}`, {
+                chat_id: chatId,
+                message_id: infoMsg.message_id
+            });
+            if (api) await api.close();
+        }
     }
 });
