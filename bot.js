@@ -150,22 +150,33 @@ bot.on('message', async (msg) => {
             };
             const waktuLengkap = new Date().toLocaleString('id-ID', { ...opsiWaktu, timeZone: 'Asia/Jakarta' });
 
+                        // Ambil format jam menit detik saja (Contoh: 19:56:41 WIB)
+            const waktuSederhana = new Date().toLocaleTimeString('id-ID', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                timeZone: 'Asia/Jakarta' 
+            }) + ' WIB';
+
+            // Ambil data Last Logout (jika kosong atau berupa epoch lama 1970, ubah teksnya)
+            const lastLogoutValue = user['last-link-down-time'];
+            const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
+                ? 'Tidak ada riwayat / Belum pernah login' 
+                : lastLogoutValue;
+
+            // FORMAT INTERFACE BARU RNB NETWORK SESUAI FOTO
             const teksInformasiKomplit = 
-    `✨ *AKTIVASI USER LAYANAN RnBNET* ✨\n` +
-    `\`======================================\`\n` +
-    `<code>🌐 Server/Wilayah :</code> Server ${serverLabel}\n` +
-    `<code>👤 Nama Pelanggan :</code> ${username}\n` +
-    `<code>💻 IP Remote     :</code> ${ipAddress}\n` +
-    `<code>🔒 Lock MAC      :</code> ${callerId}\n` +
-    `<code>🚀 Profile Paket :</code> ${profilePelanggan}\n` +
-    `<code>🛠️ Service Type  :</code> ${serviceType}\n` +
-    `<code>📝 Keterangan    :</code> ${comment}\n` +
-    `<code>⏳ Last Link Down:</code> ${lastLinkDown}\n` +
-    `\`======================================\`\n` +
-    `⚙️ *Status System  :* ✅ *ENABLED (AKTIF)*\n` +
-    `👷 *Teknisi*        :* ${namaTeknisi} (${usernameTeknisi})\n` +
-    `📅 *Waktu*          :* ${waktuLengkap}\n` +
-    `\`======================================\``;
+                `✨ *RnB Network System Interface* ⚡️\n` +
+                `-----------------------------------------------\n` +
+                `📝 *Status Aktif :* SUKSES ✅\n` +
+                `👤 *Pelanggan :* ${username}\n` +
+                `🛜 *Paket :* ${profilePelanggan}\n` +
+                `💻 *Server :* ${serverLabel.toUpperCase()}\n` +
+                `⏰ *Waktu :* ${waktuSederhana}\n` +
+                `⏱️ *Last Logout :* ${lastLogout}\n` +
+                `-----------------------------------------------\n` +
+                `📌 _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT_`;
+
 
 
             // 1. Edit pesan loading di chat teknisi menjadi Ringkasan Komplit
