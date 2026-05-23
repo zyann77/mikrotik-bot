@@ -8,36 +8,45 @@ const bot = new TelegramBot(
     }
 );
 
-console.log('Bot Running...');
+console.log('Bot 4-Server Running...');
 
-// Menerima perintah /aktif [nama] [server]
 bot.onText(/\/aktif (.+)/, async (msg, match) => {
 
     const chatId = msg.chat.id;
     const inputParam = match[1].trim();
     
-    // Memisahkan nama user dan nama server berdasarkan spasi
     const args = inputParam.split(' ');
     const username = args[0].trim();
     const targetServer = args[1] ? args[1].toLowerCase().trim() : 'panglejar';
 
-    // Default setting menggunakan data Panglejar asli Anda yang sudah sukses 100%
-    let hostMikrotik = '103.191.165.115';
-    let portMikrotik = 705;
-    let serverLabel = 'Panglejar';
+    let hostMikrotik = '';
+    let portMikrotik = 8728; 
+    let serverLabel = '';
 
-    // Logika pengalihan khusus untuk server Perum
+    // ROUTING MUTI-SERVER 100% VALID BERDASARKAN SCREENSHOT WINBOX
     if (targetServer === 'perum') {
         hostMikrotik = '103.191.165.38';
         portMikrotik = 8725;
         serverLabel = 'Perum';
+    } else if (targetServer === 'cibarola') {
+        hostMikrotik = '103.191.165.115';
+        portMikrotik = 3155; // Valid sesuai Screenshot (654).png
+        serverLabel = 'Cibarola';
+    } else if (targetServer === 'sukamelang') {
+        hostMikrotik = '103.191.165.126'; // IP Sukamelang baru Anda
+        portMikrotik = 8728; // Valid sesuai Screenshot (655).png
+        serverLabel = 'Sukamelang';
+    } else {
+        // Default otomatis ke Panglejar jika hanya mengetik nama user
+        hostMikrotik = '103.191.165.115';
+        portMikrotik = 705; // Port NAT Panglejar sukses Anda
+        serverLabel = 'Panglejar';
     }
 
     let api;
 
     try {
 
-        // Konfigurasi RouterOSClient otomatis mengikuti server target
         api = new RouterOSClient({
             host: hostMikrotik,
             user: 'berry',
@@ -75,7 +84,7 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
         console.log(`ENABLE USER [${serverLabel}]:`, username);
         console.log('ID:', id);
 
-        // ENABLE USER
+        // EKSEKUSI ENABLE
         await conn.menu('/ppp/secret').update(
             {
                 disabled: 'no'
