@@ -15,7 +15,6 @@ bot.onText(/\/aktif (.+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const username = match[1].trim();
 
-    // Buat template pilihan tombol server dengan membawa data username
     const opts = {
         reply_markup: {
             inline_keyboard: [
@@ -40,14 +39,11 @@ bot.on('callback_query', async (callbackQuery) => {
     const chatId = msg.chat.id;
     const data = callbackQuery.data;
 
-    // Pecah data dari tombol (Contoh: aktif_sukamelang:Rinisinta)
     const [serverAction, username] = data.split(':');
     const targetServer = serverAction.replace('aktif_', '');
 
-    // Beritahu Telegram kalau klik tombol sudah diterima agar loading di aplikasi hilang
     bot.answerCallbackQuery(callbackQuery.id);
 
-    // Edit pesan lama menjadi status loading agar chat rapi
     bot.editMessageText(`⏳ Sedang memproses *${username}* ke server *${targetServer.toUpperCase()}*...`, {
         chat_id: chatId,
         message_id: msg.message_id,
@@ -57,10 +53,9 @@ bot.on('callback_query', async (callbackQuery) => {
     let hostMikrotik = '';
     let portMikrotik = 8728; 
     let userMikrotik = 'berry';
-    let passMikrotik = 'subang21'; // Default password[cite: 1]
+    let passMikrotik = 'subang21';[cite: 1]
     let serverLabel = '';
 
-    // ROUTING MULTI-SERVER TETAP MEMPERTAHANKAN SETTINGAN SUKSES ANDA[cite: 1]
     if (targetServer === 'perum') {
         hostMikrotik = '103.191.165.38';
         portMikrotik = 8725;
@@ -73,7 +68,7 @@ bot.on('callback_query', async (callbackQuery) => {
         hostMikrotik = '103.191.165.126'; 
         portMikrotik = 8728; 
         serverLabel = 'Sukamelang';
-        passMikrotik = 'Subang21'; // Menggunakan huruf kapital 'S' sukses Anda[cite: 1]
+        passMikrotik = 'Subang21';[cite: 1]
     } else {
         hostMikrotik = '103.191.165.115';
         portMikrotik = 705; 
@@ -93,10 +88,7 @@ bot.on('callback_query', async (callbackQuery) => {
 
         const conn = await api.connect();
 
-        // Ambil semua PPP Secret
         const secrets = await conn.menu('/ppp/secret').get();
-
-        // Cari EXACT username
         const user = secrets.find(x => x.name === username);
 
         if (!user) {
@@ -113,11 +105,26 @@ bot.on('callback_query', async (callbackQuery) => {
         console.log(`ENABLE USER [${serverLabel}]:`, username);
         console.log('ID:', id);
 
-        // EKSEKUSI ENABLE
         await conn.menu('/ppp/secret').update({ disabled: 'no' }, id);
 
-        // Update pesan menjadi sukses total
-        bot.editMessageText(`✅ PPP Secret *${username}* berhasil di-enable di server *${serverLabel}*!`, {
+        // --- BAGIAN EDIT TEKS BALASAN LEBIH KEREN & DILENGKAPI JAM ---
+        const sekarang = new Date();
+        const jam = String(sekarang.getHours()).padStart(2, '0');
+        const menit = String(sekarang.getMinutes()).padStart(2, '0');
+        const detik = String(sekarang.getSeconds()).padStart(2, '0');
+        const waktuOn = `${jam}:${menit}:${detik} WIB`;
+
+        const teksSukses = 
+            `🟢 *RnBNET NETWORK SYSTEM INTERFACE*\n` +
+            `-----------------------------------------------\n` +
+            `📝 *Status* : Sukses Diaktifkan\n` +
+            `👤 *Pelanggan* : \`${username}\`\n` +
+            `🚀 *Server* : ${serverLabel.toUpperCase()}\n` +
+            `⏰ *Waktu ON* : \`${waktuOn}\`\n` +
+            `-----------------------------------------------\n` +
+            `⚡ _Masa isolir telah dibuka, koneksi dial PPPoE kembali normal._`;
+
+        bot.editMessageText(teksSukses, {
             chat_id: chatId,
             message_id: msg.message_id,
             parse_mode: 'Markdown'
