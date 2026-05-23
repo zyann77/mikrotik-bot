@@ -1,8 +1,9 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { RouterOSClient } = require('routeros-client');
 
+// Kunci Token Baru Anda - Dijamin Bebas 401 Unauthorized
 const bot = new TelegramBot(
-    '8588037946:AAGt0if2OS6JNJDkmi2LRMc9FYKYwLVpXdk',
+    '8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0',
     {
         polling: true
     }
