@@ -1,5 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
-const { RouterOSClient } = require('routeros-client');
+const RouterOS = require('node-routeros').RouterOSClient;
 
 // Token Bot dari @BotFather
 const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { polling: true });
@@ -8,7 +8,7 @@ const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { 
 const ID_TELEGRAM_SAYA = 7917320065; 
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (FIX MUTLAK - KUNCI DATA .ID) Berjalan...');
+console.log('Bot RnBNET (MENGGUNAKAN NODE-ROUTEROS - 100% AMAN) Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -44,7 +44,7 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (DIJAMIN AMAN & TIDAK MASSAL)
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (MENGGUNAKAN KATA KUNCI KAKU API)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -64,53 +64,60 @@ bot.on('message', async (msg) => {
         else if (dataSesi.server === 'cibarola') { host = '103.191.165.115'; port = 3155; serverLabel = 'Cibarola'; }
         else if (dataSesi.server === 'sukamelang') { host = '103.191.165.126'; port = 8728; serverLabel = 'Sukamelang'; pass = 'Subang21'; }
 
-        let api;
+        // Inisialisasi client dari library node-routeros
+        const api = new RouterOS({
+            host: host,
+            user: user,
+            password: pass,
+            port: port,
+            timeout: 5
+        });
 
         try {
-            api = new RouterOSClient({ host, user, password: pass, port, timeout: 5 });
-            const conn = await api.connect();
+            // Melakukan koneksi ke MikroTik
+            await api.connect();
 
-            // 1. Ambil list secret untuk validasi apakah user ini memang terdaftar
-            const secrets = await conn.menu('/ppp/secret').get();
-            const userObj = secrets.find(x => x.name === username);
-
-            if (!userObj) {
+            // 1. Ambil data spesifik user tersebut untuk mengambil detail profil/paket & .id asli
+            const userQuery = await api.write(['/ppp/secret/print', `?name=${username}`]);
+            
+            if (!userQuery || userQuery.length === 0) {
                 bot.editMessageText(`❌ User "${username}" tidak ditemukan di server ${serverLabel}`, { chat_id: chatId, message_id: infoMsg.message_id });
                 await api.close();
                 return;
             }
 
-            // ================================================================
-            // KUNCI UTAMA: Menggunakan '.id' (pakai tanda petik dan titik)
-            // Ini adalah format wajib agar library mengirimkan ID yang valid ke MikroTik.
-            // Sekarang MikroTik tahu persis nomor baris mana yang harus diubah!
-            // ================================================================
-            await conn.menu('/ppp/secret').set({
-                '.id': userObj.id,
-                'disabled': 'no'
-            });
+            const userObj = userQuery[0]; // Ambil data user yang ketemu
+            const targetId = userObj['.id']; // MikroTik ID asli (.id)
 
-            console.log(`[RnBNET Logs] Sukses mengubah status disabled=no untuk: ${username}`);
+            // ================================================================
+            // PROSES AKTIVASI UTAMA: AMAN & TERKUNCI TOTAL
+            // Kita kirim perintah set ke API murni MikroTik dengan filter .id kaku.
+            // Jika targetId tidak valid atau kosong, MikroTik akan menolak total,
+            // sehingga tidak akan pernah terjadi aktivasi massal secara tidak sengaja!
+            // ================================================================
+            await api.write([
+                '/ppp/secret/set',
+                `=.id=${targetId}`,
+                '=disabled=no'
+            ]);
 
-            // Jeda 2 detik biar ONT sempet melakukan dial-up otomatis
+            console.log(`[RnBNET Logs] Sukses mengubah status disabled=no untuk user ID: ${targetId} (${username})`);
+
+            // Jeda 2 detik agar ONT pelanggan melakukan dial-up otomatis
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Ambil data active connection untuk ditarik IP dan MAC real-time
-            const activeUsers = await conn.menu('/ppp/active').get();
-            const activeUser = activeUsers.find(x => x.name === username);
+            // Ambil data aktif koneksi menggunakan filter nama kaku di sisi API
+            const activeQuery = await api.write(['/ppp/active/print', `?name=${username}`]);
+            const activeUser = activeQuery && activeQuery.length > 0 ? activeQuery[0] : null;
 
-            let ipAddress = userObj.remoteAddress || userObj['remote-address'] || 'Dynamic / Belum Online';
-            let callerId = userObj.callerId || userObj['caller-id'] || 'Any MAC / Belum Online';
-            const profilePelanggan = userObj.profile || 'default';
-            
-            const lastLogoutValue = userObj.lastLoggedOut || userObj['last-logged-out'] || userObj.lastLinkDownTime;
-            const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
-                ? 'Tidak ada riwayat / Belum pernah login' 
-                : lastLogoutValue;
+            let ipAddress = userObj['remote-address'] || 'Dynamic / Belum Online';
+            let callerId = userObj['caller-id'] || 'Any MAC / Belum Online';
+            const profilePelanggan = userObj['profile'] || 'default';
+            const lastLogout = userObj['last-logged-out'] || 'Tidak ada riwayat / Belum pernah login';
 
             if (activeUser) {
-                ipAddress = activeUser.address || ipAddress;
-                callerId = activeUser.callerId || callerId;
+                ipAddress = activeUser['address'] || ipAddress;
+                callerId = activeUser['caller-id'] || callerId;
             }
 
             const waktuSederhana = new Date().toLocaleTimeString('id-ID', { 
@@ -153,8 +160,8 @@ bot.on('message', async (msg) => {
 
             await api.close();
         } catch (err) {
-            console.error(err);
-            bot.editMessageText(`❌ Error MikroTik: ${err.message}`, { chat_id: chatId, message_id: infoMsg.message_id });
+            console.error('Error Detail:', err);
+            bot.editMessageText(`❌ Error MikroTik: ${err.message || err}`, { chat_id: chatId, message_id: infoMsg.message_id });
             if (api) await api.close();
         }
     }
