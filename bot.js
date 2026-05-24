@@ -8,7 +8,7 @@ const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { 
 const ID_TELEGRAM_SAYA = 7917320065; 
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (PERBAIKAN MUTLAK - ANTI MASSAL) Berjalan...');
+console.log('Bot RnBNET (FIX MUTLAK - KUNCI DATA .ID) Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -44,7 +44,7 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (KUNCI DI PUT & WHERE)
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (DIJAMIN AMAN & TIDAK MASSAL)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -81,14 +81,13 @@ bot.on('message', async (msg) => {
             }
 
             // ================================================================
-            // KUNCI UTAMA: Menggunakan .put() dengan mencantumkan nama secara eksplisit.
-            // Di library routeros-client, .put() dikombinasikan dengan properti data
-            // akan memaksa pencarian string kaku. Jika nama tidak pas, perintah gagal.
-            // Ini mencegah MikroTik melakukan aktivasi massal ke seluruh user!
+            // KUNCI UTAMA: Menggunakan '.id' (pakai tanda petik dan titik)
+            // Ini adalah format wajib agar library mengirimkan ID yang valid ke MikroTik.
+            // Sekarang MikroTik tahu persis nomor baris mana yang harus diubah!
             // ================================================================
-            await conn.menu('/ppp/secret').put({
-                name: username,
-                disabled: 'no'
+            await conn.menu('/ppp/secret').set({
+                '.id': userObj.id,
+                'disabled': 'no'
             });
 
             console.log(`[RnBNET Logs] Sukses mengubah status disabled=no untuk: ${username}`);
