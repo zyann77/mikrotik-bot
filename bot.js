@@ -1,5 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
-const RouterOS = require('node-routeros').RouterOSClient;
+const RouterOSClient = require('node-routeros').RouterOSClient;
 
 // Token Bot dari @BotFather
 const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { polling: true });
@@ -8,7 +8,12 @@ const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { 
 const ID_TELEGRAM_SAYA = 7917320065; 
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (PRODUCTION MODE) Berjalan...');
+console.log('Bot RnBNET (NODE-ROUTEROS FIX CONSTRUCTOR) Berjalan...');
+
+// Menangkap error polling Telegram agar bot tidak mati mendadak
+bot.on('polling_error', (error) => {
+    console.error('[Telegram API Error]', error);
+});
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -44,17 +49,21 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (DENGAN TIMEOUT AMAN)
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (FIX CONSTRUCTOR & TIMEOUT)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const username = msg.text ? msg.text.trim() : '';
+    
+    // Validasi dasar agar tidak bentrok dengan perintah /start
     if (!username || username.startsWith('/')) return;
 
     const dataSesi = sesiTeknisi[chatId];
     if (dataSesi && dataSesi.status === 'WAITING_FOR_NAME') {
         const namaTeknisi = msg.from.first_name || 'Tanpa Nama';
         const usernameTeknisi = msg.from.username ? `@${msg.from.username}` : 'Tidak ada';
+        
+        // Langsung hapus sesi sebelum masuk proses async agar tidak gantung
         delete sesiTeknisi[chatId];
 
         const infoMsg = await bot.sendMessage(chatId, `⏳ Memproses *${username}* ke server *${dataSesi.server.toUpperCase()}*...`, { parse_mode: 'Markdown' });
@@ -64,8 +73,8 @@ bot.on('message', async (msg) => {
         else if (dataSesi.server === 'cibarola') { host = '103.191.165.115'; port = 3155; serverLabel = 'Cibarola'; }
         else if (dataSesi.server === 'sukamelang') { host = '103.191.165.126'; port = 8728; serverLabel = 'Sukamelang'; pass = 'Subang21'; }
 
-        // Konfigurasi koneksi kaku dengan batas timeout 5 detik
-        const api = new RouterOS({
+        // PERBAIKAN UTAMA: Menggunakan cara instansiasi RouterOSClient yang benar sesuai dokumentasi library
+        const api = new RouterOSClient({
             host: host,
             user: user,
             password: pass,
@@ -74,21 +83,33 @@ bot.on('message', async (msg) => {
             keepalive: false
         });
 
-        // Pengaman ekstra jika library hang saat connect
-        const koneksiMaksimal = setTimeout(() => {
-            bot.editMessageText(`❌ Gagal terhubung ke Server ${serverLabel}: Batas waktu koneksi (Timeout) habis. Periksa port API / IP MikroTik Anda!`, { chat_id: chatId, message_id: infoMsg.message_id });
+        let isDone = false;
+
+        // Pengaman berlapis anti-hang tingkat tinggi jika port API tertutup
+        const koneksiMaksimal = setTimeout(async () => {
+            if (isDone) return;
+            isDone = true;
+            console.log(`[RnBNET Warning] Timeout terdeteksi pada server ${serverLabel}`);
+            await bot.editMessageText(`❌ Gagal terhubung ke Server ${serverLabel}: Batas waktu koneksi habis.\n\nPeriksa apakah port API (${port}) di Winbox -> IP Services sudah aktif dan tidak diblokir firewall!`, { chat_id: chatId, message_id: infoMsg.message_id });
             try { api.close(); } catch(e){}
         }, 6000);
 
         try {
+            console.log(`[RnBNET] Mencoba terhubung ke ${host}:${port}...`);
             await api.connect();
-            clearTimeout(koneksiMaksimal); // Koneksi sukses masuk, matikan timer timeout
+            
+            // Jika timeout duluan yang berjalan, batalkan kelanjutan kodenya
+            if (isDone) return; 
 
-            // 1. Cari user di Mikrotik
+            // 1. Cari user secara spesifik di MikroTik
             const userQuery = await api.write(['/ppp/secret/print', `?name=${username}`]);
             
             if (!userQuery || userQuery.length === 0) {
-                bot.editMessageText(`❌ User "${username}" tidak ditemukan di server ${serverLabel}`, { chat_id: chatId, message_id: infoMsg.message_id });
+                if (!isDone) {
+                    isDone = true;
+                    clearTimeout(koneksiMaksimal);
+                    bot.editMessageText(`❌ User "${username}" tidak ditemukan di server ${serverLabel}`, { chat_id: chatId, message_id: infoMsg.message_id });
+                }
                 await api.close();
                 return;
             }
@@ -96,7 +117,7 @@ bot.on('message', async (msg) => {
             const userObj = userQuery[0]; 
             const targetId = userObj['.id']; 
 
-            // 2. Tembak AKTIF (Kunci ID Kaku agar tidak massal)
+            // 2. Eksekusi aktivasi TUNGGAL via ID Kaku MikroTik (Anti Massal)
             await api.write([
                 '/ppp/secret/set',
                 `=.id=${targetId}`,
@@ -105,7 +126,7 @@ bot.on('message', async (msg) => {
 
             console.log(`[RnBNET] Sukses mengaktifkan user tunggal ID: ${targetId} (${username})`);
 
-            // Jeda 2 detik biar ONT dial ulang
+            // Jeda 2 detik untuk proses dial-up ONT
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             const activeQuery = await api.write(['/ppp/active/print', `?name=${username}`]);
@@ -154,14 +175,21 @@ bot.on('message', async (msg) => {
                 `⏱️ *Last Logout :* ${lastLogout}\n` +
                 `-----------------------------------------------`;
 
-            bot.editMessageText(teksUntukTeknisi, { chat_id: chatId, message_id: infoMsg.message_id, parse_mode: 'Markdown' });
-            bot.sendMessage(ID_TELEGRAM_SAYA, teksUntukBos, { parse_mode: 'Markdown' });
+            if (!isDone) {
+                isDone = true;
+                clearTimeout(koneksiMaksimal);
+                bot.editMessageText(teksUntukTeknisi, { chat_id: chatId, message_id: infoMsg.message_id, parse_mode: 'Markdown' });
+                bot.sendMessage(ID_TELEGRAM_SAYA, teksUntukBos, { parse_mode: 'Markdown' });
+            }
 
             await api.close();
         } catch (err) {
-            clearTimeout(koneksiMaksimal);
-            console.error('Error Detail:', err);
-            bot.editMessageText(`❌ Error MikroTik: ${err.message || err}`, { chat_id: chatId, message_id: infoMsg.message_id });
+            if (!isDone) {
+                isDone = true;
+                clearTimeout(koneksiMaksimal);
+                console.error('Error Detail MikroTik:', err);
+                bot.editMessageText(`❌ Error MikroTik (${serverLabel}): ${err.message || err}`, { chat_id: chatId, message_id: infoMsg.message_id });
+            }
             if (api) try { await api.close(); } catch(e){}
         }
     }
