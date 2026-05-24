@@ -1,12 +1,18 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { RouterOSClient } = require('routeros-client');
 
+// Token Bot dari @BotFather
 const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { polling: true });
+
+// ID Telegram Kamu (Bos) untuk memantau laporan
 const ID_TELEGRAM_SAYA = 7917320065; 
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (FIX TOTAL 100% - AMAN) Berjalan...');
+console.log('Bot RnBNET (FINAL FIX REVISI TOTAL) Berjalan...');
 
+// ====================================================================
+// TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
+// ====================================================================
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     delete sesiTeknisi[chatId]; 
@@ -21,6 +27,9 @@ bot.onText(/\/start/, (msg) => {
     bot.sendMessage(chatId, 'Silakan pilih lokasi server untuk aktivasi pelanggan:', opts);
 });
 
+// ====================================================================
+// TAHAP 2: MENANGKAP KLIK TOMBOL SERVER
+// ====================================================================
 bot.on('callback_query', async (callbackQuery) => {
     const msg = callbackQuery.message;
     const chatId = msg.chat.id;
@@ -34,6 +43,9 @@ bot.on('callback_query', async (callbackQuery) => {
     }
 });
 
+// ====================================================================
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (ANTI MASSAL)
+// ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
     const username = msg.text ? msg.text.trim() : '';
@@ -58,42 +70,44 @@ bot.on('message', async (msg) => {
             api = new RouterOSClient({ host, user, password: pass, port, timeout: 5 });
             const conn = await api.connect();
 
-            // KUNCI UTAMA: Cari langsung pake filter query MikroTik (.pro())
-            // Ini nge-filter langsung di sisi Router, jadi library ga bakal pusing ato nge-bug massal
-            const pppMenu = conn.menu('/ppp/secret');
-            const userFound = await pppMenu.where({ name: username }).get();
+            // 1. Ambil list secret untuk validasi apakah user ini memang terdaftar
+            const secrets = await conn.menu('/ppp/secret').get();
+            const userObj = secrets.find(x => x.name === username);
 
-            // Jika array kosong atau user tidak ketemu
-            if (!userFound || userFound.length === 0) {
+            if (!userObj) {
                 bot.editMessageText(`❌ User "${username}" tidak ditemukan di server ${serverLabel}`, { chat_id: chatId, message_id: infoMsg.message_id });
                 await api.close();
                 return;
             }
 
-            // Ambil object user pertama dari hasil filter query
-            const targetUser = userFound[0];
+            // ================================================================
+            // KUNCI UTAMA (MENGGUNAKAN PROTOKOL RAW API KAKU):
+            // Kita tembak lewat perintah beruntun: set, disabled=no, dan filter dengan .id-nya.
+            // Metode ini memotong bug library dan memaksa Router mengunci 1 objek saja.
+            // ================================================================
+            await conn.write([
+                '/ppp/secret/set',
+                `=disabled=no`,
+                `=.id=${userObj.id}`
+            ]);
+            
+            // Baca response kosong dari router agar antrean koneksi bersih
+            await conn.read(); 
 
-            // KUNCI EKSEKUSI TUNGGAL: Tembak via .set() pake ID murni yang dapet dari query di atas
-            await pppMenu.set({
-                id: targetUser.id,
-                disabled: 'no'
-            });
+            console.log(`[RnBNET Logs] Sukses menembak status AKTIF untuk: ${username}`);
 
-            console.log(`[RnBNET] Sukses mengaktifkan 1 user: ${username}`);
-
-            // Jeda 2 detik biar ONT dial-up
+            // Beri jeda 2 detik agar ONT melakukan dial-up otomatis
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Ambil data active connection untuk ditarik IP dan MAC real-time
-            const activeMenu = conn.menu('/ppp/active');
-            const activeUsers = await activeMenu.where({ name: username }).get();
-            const activeUser = activeUsers && activeUsers.length > 0 ? activeUsers[0] : null;
+            const activeUsers = await conn.menu('/ppp/active').get();
+            const activeUser = activeUsers.find(x => x.name === username);
 
-            let ipAddress = targetUser.remoteAddress || targetUser['remote-address'] || 'Dynamic / Belum Online';
-            let callerId = targetUser.callerId || targetUser['caller-id'] || 'Any MAC / Belum Online';
-            const profilePelanggan = targetUser.profile || 'default';
+            let ipAddress = userObj.remoteAddress || userObj['remote-address'] || 'Dynamic / Belum Online';
+            let callerId = userObj.callerId || userObj['caller-id'] || 'Any MAC / Belum Online';
+            const profilePelanggan = userObj.profile || 'default';
             
-            const lastLogoutValue = targetUser.lastLoggedOut || targetUser['last-logged-out'] || targetUser.lastLinkDownTime;
+            const lastLogoutValue = userObj.lastLoggedOut || userObj['last-logged-out'] || userObj.lastLinkDownTime;
             const lastLogout = (!lastLogoutValue || lastLogoutValue === 'jan/01/1970 00:00:00') 
                 ? 'Tidak ada riwayat / Belum pernah login' 
                 : lastLogoutValue;
