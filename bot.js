@@ -3,7 +3,7 @@ const { RouterOSClient } = require('routeros-client');
 
 // TOKEN BOT
 const bot = new TelegramBot(
-    'ISI_TOKEN_BOT_KAMU',
+    '8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0',
     { polling: true }
 );
 
