@@ -8,7 +8,7 @@ const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { 
 const ID_TELEGRAM_SAYA = 7917320065; 
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (FINAL FIX - MANUAL COMMAND) Berjalan...');
+console.log('Bot RnBNET (FIX TOTAL - METHOD RAW) Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -44,7 +44,7 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (KUNCI RELEVANSI NAMA)
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (MENGGUNAKAN RAW COMMAND)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -70,7 +70,7 @@ bot.on('message', async (msg) => {
             api = new RouterOSClient({ host, user, password: pass, port, timeout: 5 });
             const conn = await api.connect();
 
-            // Ambil data user terlebih dahulu untuk validasi keberadaannya
+            // 1. Ambil data daftar PPP Secret untuk memastikan user memang ada
             const secrets = await conn.menu('/ppp/secret').get();
             const userObj = secrets.find(x => x.name === username);
 
@@ -81,21 +81,18 @@ bot.on('message', async (msg) => {
             }
 
             // ================================================================
-            // PERBAIKAN TOTAL & ANTI MASSAL: GUNAKAN RAW COMMAND WIDGET
-            // Perintah di bawah ini sama dengan mengetik manual di terminal:
-            // /ppp/secret/enable [find name="Fajarharis"]
+            // SOLUSI AMAN: Tembak perintah teks mentah lewat metode .raw()
+            // Sama persis dengan mengetik di terminal: /ppp secret enable [find name="Nama"]
             // ================================================================
-            await conn.write([
+            await conn.raw([
                 '/ppp/secret/enable',
-                `?name=${username}`
+                `=?.id=${userObj.id}`
             ]);
 
-            console.log(`[RnBNET Logs] Perintah aktivasi manual sukses dikirim untuk nama: ${username}`);
-
-            // Beri jeda 2 detik agar ONT melakukan dial-up
+            // Jeda 2 detik agar ONT melakukan dial-up otomatis
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Ambil data active connection untuk ditarik IP dan MAC
+            // Ambil data active connection untuk ditarik IP dan MAC real-time
             const activeUsers = await conn.menu('/ppp/active').get();
             const activeUser = activeUsers.find(x => x.name === username);
 
@@ -117,7 +114,7 @@ bot.on('message', async (msg) => {
                 hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' 
             }) + ' WIB';
 
-            // Template bersih untuk room chat teknisi
+            // Template rekap bersih untuk teknisi
             const teksUntukTeknisi = 
                 `✨ *RnB Network System Interface* ⚡️\n` +
                 `-----------------------------------------------\n` +
@@ -132,7 +129,7 @@ bot.on('message', async (msg) => {
                 `-----------------------------------------------\n` +
                 `📌 _Masa isolir telah dibuka, perintah dial ulang dikirim ke ONT_`;
 
-            // Template lengkap untuk room chat kamu (Bos)
+            // Template rekap detail untuk kamu (Bos)
             const teksUntukBos = 
                 `📢 *LAPORAN AKTIVASI TEKNISI*\n` +
                 `👷 *Eksekutor :* ${namaTeknisi} (${usernameTeknisi})\n` +
