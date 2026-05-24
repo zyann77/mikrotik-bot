@@ -44,7 +44,7 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (MENGGUNAKAN KATA KUNCI KAKU API)
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (KUNCI STRING API KAKU)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -64,7 +64,7 @@ bot.on('message', async (msg) => {
         else if (dataSesi.server === 'cibarola') { host = '103.191.165.115'; port = 3155; serverLabel = 'Cibarola'; }
         else if (dataSesi.server === 'sukamelang') { host = '103.191.165.126'; port = 8728; serverLabel = 'Sukamelang'; pass = 'Subang21'; }
 
-        // Inisialisasi client dari library node-routeros
+        // Inisialisasi client dari library baru node-routeros
         const api = new RouterOS({
             host: host,
             user: user,
@@ -74,10 +74,10 @@ bot.on('message', async (msg) => {
         });
 
         try {
-            // Melakukan koneksi ke MikroTik
+            // Hubungkan ke port API MikroTik
             await api.connect();
 
-            // 1. Ambil data spesifik user tersebut untuk mengambil detail profil/paket & .id asli
+            // 1. Cari data spesifik user berdasarkan properti name di sisi router
             const userQuery = await api.write(['/ppp/secret/print', `?name=${username}`]);
             
             if (!userQuery || userQuery.length === 0) {
@@ -86,14 +86,14 @@ bot.on('message', async (msg) => {
                 return;
             }
 
-            const userObj = userQuery[0]; // Ambil data user yang ketemu
-            const targetId = userObj['.id']; // MikroTik ID asli (.id)
+            const userObj = userQuery[0]; // Menangkap objek pelanggan pertama
+            const targetId = userObj['.id']; // Menangkap ID unik (.id) milik pelanggan tersebut
 
             // ================================================================
-            // PROSES AKTIVASI UTAMA: AMAN & TERKUNCI TOTAL
-            // Kita kirim perintah set ke API murni MikroTik dengan filter .id kaku.
-            // Jika targetId tidak valid atau kosong, MikroTik akan menolak total,
-            // sehingga tidak akan pernah terjadi aktivasi massal secara tidak sengaja!
+            // PROSES UTAMA YANG 100% AMAN DARI BUG MASSAL:
+            // Kita kirim perintah set dengan mengunci properti =.id secara kaku.
+            // Jika targetId tidak valid atau kosong, perintah ditolak oleh MikroTik,
+            // sehingga tidak ada peluang melakukan perubahan massal ke user lain!
             // ================================================================
             await api.write([
                 '/ppp/secret/set',
@@ -101,9 +101,9 @@ bot.on('message', async (msg) => {
                 '=disabled=no'
             ]);
 
-            console.log(`[RnBNET Logs] Sukses mengubah status disabled=no untuk user ID: ${targetId} (${username})`);
+            console.log(`[RnBNET] Sukses mengaktifkan user tunggal ID: ${targetId} (${username})`);
 
-            // Jeda 2 detik agar ONT pelanggan melakukan dial-up otomatis
+            // Jeda 2 detik agar ONT melakukan dial-up otomatis ke server
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Ambil data aktif koneksi menggunakan filter nama kaku di sisi API
