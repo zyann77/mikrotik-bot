@@ -1,5 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
-const RouterOS = require('node-routeros').RouterOS;
+const RouterOSAPI = require('node-routeros').RouterOSAPI;
 
 // ======================================================
 // TOKEN BOT TELEGRAM
@@ -8,7 +8,7 @@ const RouterOS = require('node-routeros').RouterOS;
 const TOKEN_BOT_KAMU = '8588037946:AAGTU5sILB3M6W0acPRmODRbco79oGkG3DM';
 
 // ======================================================
-// TELEGRAM BOT
+// BOT TELEGRAM
 // ======================================================
 
 const bot = new TelegramBot(TOKEN_BOT_KAMU, {
@@ -22,7 +22,7 @@ const bot = new TelegramBot(TOKEN_BOT_KAMU, {
 const ID_TELEGRAM_SAYA = 7917320065;
 
 // ======================================================
-// SESSION TEKNISI
+// SESSION
 // ======================================================
 
 const sesiTeknisi = {};
@@ -30,7 +30,7 @@ const sesiTeknisi = {};
 console.log('Bot RnBNET FINAL FIX berjalan...');
 
 // ======================================================
-// ERROR TELEGRAM
+// ERROR HANDLER TELEGRAM
 // ======================================================
 
 bot.on('polling_error', (error) => {
@@ -205,10 +205,10 @@ bot.on('message', async (msg) => {
     }
 
     // ======================================================
-    // CONNECT ROUTEROS
+    // API ROUTEROS
     // ======================================================
 
-    const api = new RouterOS({
+    const api = new RouterOSAPI({
         host: host,
         user: user,
         password: pass,
@@ -217,6 +217,10 @@ bot.on('message', async (msg) => {
     });
 
     let isDone = false;
+
+    // ======================================================
+    // TIMEOUT KONEKSI
+    // ======================================================
 
     const timeoutKoneksi = setTimeout(async () => {
 
@@ -251,7 +255,7 @@ bot.on('message', async (msg) => {
         if (isDone) return;
 
         // ======================================================
-        // CARI USER PPP
+        // AMBIL PPP SECRET
         // ======================================================
 
         const secrets = await api.write(
