@@ -4,11 +4,9 @@
   "description": "Bot Manajemen MikroTik RnBNET",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js",
-    "preinstall": "npm install --package-lock=false"
+    "start": "node bot.js"
   },
   "dependencies": {
-    "node-telegram-bot-api": "^0.66.0",
-    "node-routeros": "^1.1.4"
+    "node-telegram-bot-api": "^0.66.0"
   }
 }
