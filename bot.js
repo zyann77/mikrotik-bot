@@ -8,7 +8,7 @@ const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { 
 const ID_TELEGRAM_SAYA = 7917320065; 
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (FINAL FIX - ID TANPA TITIK) Berjalan...');
+console.log('Bot RnBNET (FINAL FIX - MANUAL COMMAND) Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -44,7 +44,7 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (HANYA 1 USER)
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (KUNCI RELEVANSI NAMA)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -70,7 +70,7 @@ bot.on('message', async (msg) => {
             api = new RouterOSClient({ host, user, password: pass, port, timeout: 5 });
             const conn = await api.connect();
 
-            // Ambil daftar PPP Secret
+            // Ambil data user terlebih dahulu untuk validasi keberadaannya
             const secrets = await conn.menu('/ppp/secret').get();
             const userObj = secrets.find(x => x.name === username);
 
@@ -80,22 +80,19 @@ bot.on('message', async (msg) => {
                 return;
             }
 
-            // AMBIL PROPERTI id RESMI TANPA TANDA TITIK
-            const targetId = userObj.id;
+            // ================================================================
+            // PERBAIKAN TOTAL & ANTI MASSAL: GUNAKAN RAW COMMAND WIDGET
+            // Perintah di bawah ini sama dengan mengetik manual di terminal:
+            // /ppp/secret/enable [find name="Fajarharis"]
+            // ================================================================
+            await conn.write([
+                '/ppp/secret/enable',
+                `?name=${username}`
+            ]);
 
-            if (!targetId) {
-                bot.editMessageText(`❌ Error: Properti ID milik "${username}" tidak terbaca di sistem.`, { chat_id: chatId, message_id: infoMsg.message_id });
-                await api.close();
-                return;
-            }
+            console.log(`[RnBNET Logs] Perintah aktivasi manual sukses dikirim untuk nama: ${username}`);
 
-            // KUNCI EKSEKUSI TUNGGAL: Menggunakan .set() dengan mempassing ID spesifik
-            await conn.menu('/ppp/secret').set({
-                id: targetId,
-                disabled: 'no'
-            });
-
-            // Beri jeda agar ONT melakukan dial-up
+            // Beri jeda 2 detik agar ONT melakukan dial-up
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Ambil data active connection untuk ditarik IP dan MAC
