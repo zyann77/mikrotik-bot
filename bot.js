@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const RouterOSClient = require('node-routeros').RouterOSClient;
 
 // Token Bot dari @BotFather
-const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { polling: true });
+const bot = new TelegramBot('8588037946:AAGTU5sILB3M6W0acPRmODRbco79oGkG3DM', { polling: true });
 
 // ID Telegram Kamu (Bos)
 const ID_TELEGRAM_SAYA = 7917320065; 
