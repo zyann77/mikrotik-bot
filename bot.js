@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
-const RouterOSClient = require('node-routeros').RouterOSClient;
+// PERBAIKAN IMPORT: Memanggil library inti RouterOS dengan benar
+const RouterOS = require('node-routeros').RouterOS;
 
 // Token resmi dari kamu
 const TOKEN_BOT_KAMU = '8588037946:AAGTU5sILB3M6W0acPRmODRbco79oGkG3DM'; 
@@ -8,7 +9,7 @@ const bot = new TelegramBot(TOKEN_BOT_KAMU, { polling: true });
 const ID_TELEGRAM_SAYA = 7917320065; 
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (JALUR INSTANS_FIX) Berjalan...');
+console.log('Bot RnBNET (JALUR INSTANS_FINAL_FIX) Berjalan...');
 
 bot.on('polling_error', (error) => {
     console.error('[Telegram API Error]', error);
@@ -48,7 +49,7 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: EKSEKUSI TUNGGAL (FIX TANPA KEYWORD "NEW")
+// TAHAP 3: EKSEKUSI TUNGGAL (FIX SINTAKS INSTANSIASI)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -68,14 +69,13 @@ bot.on('message', async (msg) => {
         else if (dataSesi.server === 'cibarola') { host = '103.191.165.115'; port = 3155; serverLabel = 'Cibarola'; }
         else if (dataSesi.server === 'sukamelang') { host = '103.191.165.126'; port = 8728; serverLabel = 'Sukamelang'; pass = 'Subang21'; }
 
-        // FIX TOTAL: Di library node-routeros, pemanggilan client TIDAK MEMAKAI kata kunci "new"
-        const api = RouterOSClient({
+        // PERBAIKAN TOTAL SAKTI: Ini adalah format instansiasi resmi yang benar dari library node-routeros
+        const api = new RouterOS({
             host: host,
             user: user,
             password: pass,
             port: port,
-            timeout: 8,
-            keepalive: false
+            timeout: 8
         });
 
         let isDone = false;
