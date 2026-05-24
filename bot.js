@@ -1,5 +1,50 @@
+const TelegramBot = require('node-telegram-bot-api');
+const RouterOS = require('node-routeros').RouterOSClient;
+
+// Token Bot dari @BotFather
+const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { polling: true });
+
+// ID Telegram Kamu (Bos)
+const ID_TELEGRAM_SAYA = 7917320065; 
+const sesiTeknisi = {};
+
+console.log('Bot RnBNET (PRODUCTION MODE) Berjalan...');
+
 // ====================================================================
-// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (DENGAN PENANGANAN TIMEOUT KETAT)
+// TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
+// ====================================================================
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    delete sesiTeknisi[chatId]; 
+    const opts = {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: '🌐 Panglejar', callback_data: 'srv_panglejar' }, { text: '🏢 Perum', callback_data: 'srv_perum' }],
+                [{ text: '🛰️ Cibarola', callback_data: 'srv_cibarola' }, { text: '🔥 Sukamelang', callback_data: 'srv_sukamelang' }]
+            ]
+        }
+    };
+    bot.sendMessage(chatId, 'Silakan pilih lokasi server untuk aktivasi pelanggan:', opts);
+});
+
+// ====================================================================
+// TAHAP 2: MENANGKAP KLIK TOMBOL SERVER
+// ====================================================================
+bot.on('callback_query', async (callbackQuery) => {
+    const msg = callbackQuery.message;
+    const chatId = msg.chat.id;
+    const data = callbackQuery.data;
+
+    if (data.startsWith('srv_')) {
+        const targetServer = data.replace('srv_', '');
+        sesiTeknisi[chatId] = { server: targetServer, status: 'WAITING_FOR_NAME' };
+        bot.answerCallbackQuery(callbackQuery.id);
+        bot.editMessageText(`✅ Server: *${targetServer.toUpperCase()}*\n\nSilakan ketik *Nama Pelanggan* yang ingin diaktifkan:`, { chat_id: chatId, message_id: msg.message_id, parse_mode: 'Markdown' });
+    }
+});
+
+// ====================================================================
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (DENGAN TIMEOUT AMAN)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -19,7 +64,7 @@ bot.on('message', async (msg) => {
         else if (dataSesi.server === 'cibarola') { host = '103.191.165.115'; port = 3155; serverLabel = 'Cibarola'; }
         else if (dataSesi.server === 'sukamelang') { host = '103.191.165.126'; port = 8728; serverLabel = 'Sukamelang'; pass = 'Subang21'; }
 
-        // Konfigurasi koneksi kaku dengan deteksi kegagalan cepat (timeout 5 detik)
+        // Konfigurasi koneksi kaku dengan batas timeout 5 detik
         const api = new RouterOS({
             host: host,
             user: user,
@@ -29,7 +74,7 @@ bot.on('message', async (msg) => {
             keepalive: false
         });
 
-        // Buat pengaman tambahan agar script tidak hang jika library gagal memutus koneksi
+        // Pengaman ekstra jika library hang saat connect
         const koneksiMaksimal = setTimeout(() => {
             bot.editMessageText(`❌ Gagal terhubung ke Server ${serverLabel}: Batas waktu koneksi (Timeout) habis. Periksa port API / IP MikroTik Anda!`, { chat_id: chatId, message_id: infoMsg.message_id });
             try { api.close(); } catch(e){}
@@ -37,7 +82,7 @@ bot.on('message', async (msg) => {
 
         try {
             await api.connect();
-            clearTimeout(koneksiMaksimal); // Amankan, koneksi berhasil masuk sebelum 5 detik
+            clearTimeout(koneksiMaksimal); // Koneksi sukses masuk, matikan timer timeout
 
             // 1. Cari user di Mikrotik
             const userQuery = await api.write(['/ppp/secret/print', `?name=${username}`]);
