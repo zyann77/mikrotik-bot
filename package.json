@@ -1,16 +1,13 @@
 {
-  "name": "mikrotik-bot",
+  "name": "rnbnet-bot",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Bot Manajemen MikroTik RnBNET",
+  "main": "bot.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node bot.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "node-telegram-bot-api": "^0.67.0",
-    "routeros-client": "^1.1.1"
+    "node-telegram-bot-api": "^0.66.0",
+    "node-routeros": "^1.1.4"
   }
 }
