@@ -1,100 +1,399 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { RouterOSClient } = require('routeros-client');
 
-const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { polling: true });
-const ID_TELEGRAM_SAYA = 7917320065; 
+// TOKEN BOT
+const bot = new TelegramBot(
+    'ISI_TOKEN_BOT_KAMU',
+    { polling: true }
+);
+
+// ID TELEGRAM BOS
+const ID_TELEGRAM_SAYA = 7917320065;
+
+// SESSION TEKNISI
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (FINAL FIX AKTIVASI TUNGGAL) Berjalan...');
+console.log('Bot RnBNET FINAL ACTIVE USER berjalan...');
 
-bot.onText(/\/start/, (msg) => {
+// ======================================================
+// START
+// ======================================================
+bot.onText(/\/start/, async (msg) => {
+
     const chatId = msg.chat.id;
-    delete sesiTeknisi[chatId]; 
+
+    delete sesiTeknisi[chatId];
+
     const opts = {
         reply_markup: {
             inline_keyboard: [
-                [{ text: '🌐 Panglejar', callback_data: 'srv_panglejar' }, { text: '🏢 Perum', callback_data: 'srv_perum' }],
-                [{ text: '🛰️ Cibarola', callback_data: 'srv_cibarola' }, { text: '🔥 Sukamelang', callback_data: 'srv_sukamelang' }]
+                [
+                    {
+                        text: '🌐 Panglejar',
+                        callback_data: 'srv_panglejar'
+                    },
+                    {
+                        text: '🏢 Perum',
+                        callback_data: 'srv_perum'
+                    }
+                ],
+                [
+                    {
+                        text: '🛰️ Cibarola',
+                        callback_data: 'srv_cibarola'
+                    },
+                    {
+                        text: '🔥 Sukamelang',
+                        callback_data: 'srv_sukamelang'
+                    }
+                ]
             ]
         }
     };
-    bot.sendMessage(chatId, 'Pilih server:', opts);
+
+    bot.sendMessage(
+        chatId,
+        'Silakan pilih server pelanggan:',
+        opts
+    );
+
 });
 
+// ======================================================
+// CALLBACK BUTTON
+// ======================================================
 bot.on('callback_query', async (callbackQuery) => {
+
     const msg = callbackQuery.message;
     const chatId = msg.chat.id;
     const data = callbackQuery.data;
 
     if (data.startsWith('srv_')) {
+
         const targetServer = data.replace('srv_', '');
-        sesiTeknisi[chatId] = { server: targetServer, status: 'WAITING_FOR_NAME' };
-        bot.answerCallbackQuery(callbackQuery.id);
-        bot.editMessageText(`✅ Server: *${targetServer.toUpperCase()}*\nKetik *Nama Pelanggan*:`, { chat_id: chatId, message_id: msg.message_id, parse_mode: 'Markdown' });
+
+        sesiTeknisi[chatId] = {
+            server: targetServer,
+            status: 'WAITING_USERNAME'
+        };
+
+        await bot.answerCallbackQuery(callbackQuery.id);
+
+        let serverLabel =
+            targetServer.charAt(0).toUpperCase() +
+            targetServer.slice(1);
+
+        bot.editMessageText(
+            `✅ Server *${serverLabel}* dipilih\n\nKetik username PPP pelanggan:`,
+            {
+                chat_id: chatId,
+                message_id: msg.message_id,
+                parse_mode: 'Markdown'
+            }
+        );
+
     }
+
 });
 
+// ======================================================
+// MESSAGE
+// ======================================================
 bot.on('message', async (msg) => {
+
     const chatId = msg.chat.id;
-    const username = msg.text ? msg.text.trim() : '';
-    if (!username || username.startsWith('/')) return;
+    const text = msg.text;
+
+    if (!text || text.startsWith('/start')) return;
 
     const dataSesi = sesiTeknisi[chatId];
-    if (dataSesi && dataSesi.status === 'WAITING_FOR_NAME') {
-        const namaTeknisi = msg.from.first_name || 'Tanpa Nama';
-        const usernameTeknisi = msg.from.username ? `@${msg.from.username}` : 'Tidak ada';
-        delete sesiTeknisi[chatId];
 
-        const infoMsg = await bot.sendMessage(chatId, `⏳ Memproses *${username}*...`, { parse_mode: 'Markdown' });
+    if (!dataSesi) return;
 
-        let host = '103.191.165.115', port = 705, user = 'berry', pass = 'subang21', serverLabel = 'Panglejar';
-        if (dataSesi.server === 'perum') { host = '103.191.165.38'; port = 8725; serverLabel = 'Perum'; }
-        else if (dataSesi.server === 'cibarola') { host = '103.191.165.115'; port = 3155; serverLabel = 'Cibarola'; }
-        else if (dataSesi.server === 'sukamelang') { host = '103.191.165.126'; port = 8728; serverLabel = 'Sukamelang'; pass = 'Subang21'; }
+    if (dataSesi.status !== 'WAITING_USERNAME') return;
 
-        try {
-            const api = new RouterOSClient({ host, user, password: pass, port, timeout: 5 });
-            const conn = await api.connect();
+    const username = text.trim();
+    const targetServer = dataSesi.server;
 
-            const secrets = await conn.menu('/ppp/secret').get();
-            const userObj = secrets.find(x => x.name === username);
+    delete sesiTeknisi[chatId];
 
-            if (!userObj) {
-                bot.editMessageText(`❌ User "${username}" tidak ditemukan!`, { chat_id: chatId, message_id: infoMsg.message_id });
-                await api.close();
-                return;
-            }
+    const namaTeknisi =
+        msg.from.first_name || 'Tanpa Nama';
 
-            // KUNCI EKSEKUSI: MENGGUNAKAN .id UNIK AGAR TIDAK MASSAL
-            const targetId = userObj['.id'];
-            await conn.menu('/ppp/secret').update({
-                '.id': targetId,
-                'disabled': 'no'
-            });
+    const usernameTeknisi =
+        msg.from.username
+            ? `@${msg.from.username}`
+            : 'Tidak ada';
 
-            await new Promise(resolve => setTimeout(resolve, 1500));
+    const infoMsg = await bot.sendMessage(
+        chatId,
+        `⏳ Memproses user *${username}* ...`,
+        {
+            parse_mode: 'Markdown'
+        }
+    );
 
-            const activeUsers = await conn.menu('/ppp/active').get();
-            const activeUser = activeUsers.find(x => x.name === username);
+    let hostMikrotik = '';
+    let portMikrotik = 8728;
+    let userMikrotik = 'berry';
+    let passMikrotik = 'subang21';
+    let serverLabel = '';
 
-            let ipAddress = userObj.remoteAddress || 'Dynamic';
-            let callerId = userObj.callerId || 'Any';
-            if (activeUser) {
-                ipAddress = activeUser.address || ipAddress;
-                callerId = activeUser.callerId || callerId;
-            }
+    // ======================================================
+    // SERVER
+    // ======================================================
 
-            const waktu = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' });
-            
-            const teksT = `✨ *RnB Network*\n📝 *Status:* SUKSES ✅\n👤 *Pelanggan:* ${username}\n🌐 *IP:* ${ipAddress}\n🔒 *MAC:* ${callerId}\n⏰ *Waktu:* ${waktu} WIB`;
-            const teksB = `📢 *LAPORAN TEKNISI*\n👷 *Eksekutor:* ${namaTeknisi} (${usernameTeknisi})\n-----------------\n${teksT}`;
+    if (targetServer === 'perum') {
 
-            bot.editMessageText(teksT, { chat_id: chatId, message_id: infoMsg.message_id, parse_mode: 'Markdown' });
-            bot.sendMessage(ID_TELEGRAM_SAYA, teksB, { parse_mode: 'Markdown' });
+        hostMikrotik = '103.191.165.38';
+        portMikrotik = 8725;
+        serverLabel = 'Perum';
+
+    }
+    else if (targetServer === 'cibarola') {
+
+        hostMikrotik = '103.191.165.115';
+        portMikrotik = 3155;
+        serverLabel = 'Cibarola';
+
+    }
+    else if (targetServer === 'sukamelang') {
+
+        hostMikrotik = '103.191.165.126';
+        portMikrotik = 8728;
+        passMikrotik = 'Subang21';
+        serverLabel = 'Sukamelang';
+
+    }
+    else {
+
+        hostMikrotik = '103.191.165.115';
+        portMikrotik = 705;
+        serverLabel = 'Panglejar';
+
+    }
+
+    let api;
+
+    try {
+
+        // ======================================================
+        // CONNECT
+        // ======================================================
+
+        api = new RouterOSClient({
+            host: hostMikrotik,
+            user: userMikrotik,
+            password: passMikrotik,
+            port: portMikrotik,
+            timeout: 5000
+        });
+
+        const conn = await api.connect();
+
+        // ======================================================
+        // GET SECRET
+        // ======================================================
+
+        const secrets = await conn
+            .menu('/ppp/secret')
+            .get();
+
+        const user = secrets.find(
+            x =>
+                x.name &&
+                x.name.trim().toLowerCase() ===
+                username.trim().toLowerCase()
+        );
+
+        // ======================================================
+        // USER TIDAK ADA
+        // ======================================================
+
+        if (!user) {
+
+            await bot.editMessageText(
+                `❌ User "${username}" tidak ditemukan di server ${serverLabel}`,
+                {
+                    chat_id: chatId,
+                    message_id: infoMsg.message_id
+                }
+            );
 
             await api.close();
-        } catch (err) {
-            bot.editMessageText(`❌ Error MikroTik: ${err.message}`, { chat_id: chatId, message_id: infoMsg.message_id });
+
+            return;
+
         }
+
+        // DEBUG
+        console.log('PPP SECRET:', user);
+
+        // ======================================================
+        // VALIDASI ID
+        // ======================================================
+
+        if (!user['.id']) {
+            throw new Error(
+                'PPP Secret tidak memiliki .id'
+            );
+        }
+
+        // ======================================================
+        // AKTIFKAN HANYA 1 USER
+        // ======================================================
+
+        await conn.write(
+            '/ppp/secret/set',
+            [
+                `=.id=${user['.id']}`,
+                '=disabled=no'
+            ]
+        );
+
+        // ======================================================
+        // DELAY
+        // ======================================================
+
+        await new Promise(resolve =>
+            setTimeout(resolve, 2000)
+        );
+
+        // ======================================================
+        // ACTIVE USER
+        // ======================================================
+
+        const activeUsers = await conn
+            .menu('/ppp/active')
+            .get();
+
+        const activeUser = activeUsers.find(
+            x =>
+                x.name &&
+                x.name.trim().toLowerCase() ===
+                username.trim().toLowerCase()
+        );
+
+        // ======================================================
+        // DATA
+        // ======================================================
+
+        let ipAddress =
+            user.remoteAddress ||
+            user['remote-address'] ||
+            'Dynamic';
+
+        let callerId =
+            user.callerId ||
+            user['caller-id'] ||
+            'Any MAC';
+
+        const profilePelanggan =
+            user.profile || 'default';
+
+        const lastLogoutValue =
+            user.lastLoggedOut ||
+            user['last-logged-out'] ||
+            '-';
+
+        const lastLogout =
+            !lastLogoutValue ||
+            lastLogoutValue === 'jan/01/1970 00:00:00'
+                ? 'Belum ada'
+                : lastLogoutValue;
+
+        if (activeUser) {
+
+            ipAddress =
+                activeUser.address || ipAddress;
+
+            callerId =
+                activeUser.callerId || callerId;
+
+        }
+
+        const waktuSederhana =
+            new Date().toLocaleTimeString(
+                'id-ID',
+                {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    timeZone: 'Asia/Jakarta'
+                }
+            ) + ' WIB';
+
+        // ======================================================
+        // MESSAGE TEKNISI
+        // ======================================================
+
+        const teksUntukTeknisi =
+            `✨ *RnB Network System* ⚡️\n` +
+            `----------------------------------\n` +
+            `✅ *Status:* BERHASIL\n` +
+            `👤 *Pelanggan:* ${username}\n` +
+            `🛜 *Paket:* ${profilePelanggan}\n` +
+            `💻 *Server:* ${serverLabel}\n` +
+            `🌐 *IP:* ${ipAddress}\n` +
+            `🔒 *MAC:* ${callerId}\n` +
+            `⏰ *Waktu:* ${waktuSederhana}\n` +
+            `⏱️ *Last Logout:* ${lastLogout}`;
+
+        // ======================================================
+        // MESSAGE BOS
+        // ======================================================
+
+        const teksUntukBos =
+            `📢 *LAPORAN AKTIVASI*\n` +
+            `👷 *Teknisi:* ${namaTeknisi} (${usernameTeknisi})\n` +
+            `----------------------------------\n` +
+            `👤 *Pelanggan:* ${username}\n` +
+            `🛜 *Paket:* ${profilePelanggan}\n` +
+            `💻 *Server:* ${serverLabel}\n` +
+            `🌐 *IP:* ${ipAddress}\n` +
+            `🔒 *MAC:* ${callerId}\n` +
+            `⏰ *Waktu:* ${waktuSederhana}`;
+
+        // ======================================================
+        // SEND
+        // ======================================================
+
+        await bot.editMessageText(
+            teksUntukTeknisi,
+            {
+                chat_id: chatId,
+                message_id: infoMsg.message_id,
+                parse_mode: 'Markdown'
+            }
+        );
+
+        await bot.sendMessage(
+            ID_TELEGRAM_SAYA,
+            teksUntukBos,
+            {
+                parse_mode: 'Markdown'
+            }
+        );
+
+        await api.close();
+
     }
+    catch (error) {
+
+        console.log(error);
+
+        await bot.editMessageText(
+            `❌ Error server ${serverLabel}\n\n${error.message}`,
+            {
+                chat_id: chatId,
+                message_id: infoMsg.message_id
+            }
+        );
+
+        if (api) {
+            await api.close();
+        }
+
+    }
+
 });
