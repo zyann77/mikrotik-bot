@@ -4,11 +4,11 @@ const { RouterOSClient } = require('routeros-client');
 // Token Bot dari @BotFather
 const bot = new TelegramBot('8588037946:AAFbgeq3N_OcT_3ahZTGAYrXCwDzLw76sf0', { polling: true });
 
-// ID Telegram Kamu (Bos) untuk memantau laporan
+// ID Telegram Kamu (Bos)
 const ID_TELEGRAM_SAYA = 7917320065; 
 const sesiTeknisi = {};
 
-console.log('Bot RnBNET (FINAL FIX REVISI TOTAL) Berjalan...');
+console.log('Bot RnBNET (PERBAIKAN MUTLAK - ANTI MASSAL) Berjalan...');
 
 // ====================================================================
 // TAHAP 1: TEKNISI PENCET /start -> MUNCULKAN 4 SERVER
@@ -44,7 +44,7 @@ bot.on('callback_query', async (callbackQuery) => {
 });
 
 // ====================================================================
-// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (ANTI MASSAL)
+// TAHAP 3: EKSEKUSI MIKROTIK TUNGGAL (KUNCI DI PUT & WHERE)
 // ====================================================================
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -81,22 +81,19 @@ bot.on('message', async (msg) => {
             }
 
             // ================================================================
-            // KUNCI UTAMA (MENGGUNAKAN PROTOKOL RAW API KAKU):
-            // Kita tembak lewat perintah beruntun: set, disabled=no, dan filter dengan .id-nya.
-            // Metode ini memotong bug library dan memaksa Router mengunci 1 objek saja.
+            // KUNCI UTAMA: Menggunakan .put() dengan mencantumkan nama secara eksplisit.
+            // Di library routeros-client, .put() dikombinasikan dengan properti data
+            // akan memaksa pencarian string kaku. Jika nama tidak pas, perintah gagal.
+            // Ini mencegah MikroTik melakukan aktivasi massal ke seluruh user!
             // ================================================================
-            await conn.write([
-                '/ppp/secret/set',
-                `=disabled=no`,
-                `=.id=${userObj.id}`
-            ]);
-            
-            // Baca response kosong dari router agar antrean koneksi bersih
-            await conn.read(); 
+            await conn.menu('/ppp/secret').put({
+                name: username,
+                disabled: 'no'
+            });
 
-            console.log(`[RnBNET Logs] Sukses menembak status AKTIF untuk: ${username}`);
+            console.log(`[RnBNET Logs] Sukses mengubah status disabled=no untuk: ${username}`);
 
-            // Beri jeda 2 detik agar ONT melakukan dial-up otomatis
+            // Jeda 2 detik biar ONT sempet melakukan dial-up otomatis
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Ambil data active connection untuk ditarik IP dan MAC real-time
